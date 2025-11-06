@@ -1,0 +1,33 @@
+const express = require('express');
+const router = express.Router();
+const courseCtrl = require('../controllers/course.controller');
+const { auth, permit } = require('../middlewares/auth.middleware');
+const { body, validationResult } = require('express-validator');
+
+// Middleware to handle validation results
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+  next();
+};
+
+// GET /courses - list all courses
+router.get('/', courseCtrl.getCourses);
+
+// POST /courses - create a course (instructor/admin only)
+router.post(
+  '/',
+  auth,
+  permit('instructor', 'admin'),
+  [
+    body('title').notEmpty().withMessage('Course title is required'),
+    body('description').optional().isString()
+  ],
+  validate,
+  courseCtrl.createCourse
+);
+
+// GET /courses/:id - get details of a specific course
+router.get('/:id', courseCtrl.getCourse);
+
+module.exports = router;

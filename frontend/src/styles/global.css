@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+/* ==========================
+   Base Styles
+========================== */
+body {
+  @apply bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500
+         text-gray-100 min-h-screen font-sans;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  @apply text-white hover:text-purple-200 transition-colors;
+}
+
+/* ==========================
+   Glassmorphism Cards
+========================== */
+.glass-card {
+  @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl
+         shadow-lg p-6 transition-transform duration-300 ease-in-out;
+}
+
+.glass-card:hover {
+  @apply scale-105 shadow-2xl;
+}
+
+/* Responsive card padding */
+.glass-card-sm { @apply p-4; }
+.glass-card-md { @apply p-6; }
+.glass-card-lg { @apply p-8; }
+
+/* ==========================
+   Buttons
+========================== */
+.btn {
+  @apply px-6 py-2 rounded-xl font-semibold text-white
+         transition-all duration-300 focus:outline-none focus:ring-2;
+}
+
+.btn-primary {
+  @apply bg-gradient-to-r from-indigo-600 to-purple-600
+         hover:from-purple-600 hover:to-indigo-600 shadow-md
+         focus:ring-indigo-400;
+}
+
+.btn-secondary {
+  @apply bg-white/20 text-white hover:bg-white/30 shadow-sm
+         focus:ring-purple-400;
+}
+
+.btn-disabled {
+  @apply bg-gray-400 cursor-not-allowed opacity-50;
+}
+
+/* ==========================
+   Form Inputs & Labels
+========================== */
+.input-field {
+  @apply bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl
+         p-3 w-full text-white placeholder:text-gray-300
+         focus:outline-none focus:ring-2 focus:ring-purple-400
+         transition-all duration-300;
+}
+
+label.floating {
+  @apply text-gray-300 text-sm mb-1 block;
+}
+
+/* Textarea specific */
+.textarea-field {
+  @apply input-field resize-none h-24;
+}
+
+/* ==========================
+   Loader
+========================== */
+.loader {
+  @apply border-4 border-white/30 border-t-white/70 rounded-full
+         w-12 h-12 animate-spin;
+}
+
+.loader-sm { @apply w-8 h-8 border-2; }
+.loader-lg { @apply w-16 h-16 border-6; }
+
+/* ==========================
+   Sidebar Links
+========================== */
+.sidebar-link {
+  @apply flex items-center p-3 rounded-lg transition-colors duration-300
+         hover:bg-white/10 hover:text-purple-200;
+}
+
+/* Active sidebar link */
+.sidebar-link-active {
+  @apply bg-white/20 text-white font-semibold;
+}
+
+/* ==========================
+   Chart Containers
+========================== */
+.chart-container {
+  @apply glass-card p-4 w-full max-w-full h-80 mb-6;
+}
+
+/* Responsive chart heights */
+.chart-container-md { @apply h-96; }
+.chart-container-lg { @apply h-112; }
+
+/* ==========================
+   Tables
+========================== */
+.table-container {
+  @apply glass-card overflow-x-auto;
+}
+
+.table {
+  @apply w-full text-left border-collapse;
+}
+
+.table th, .table td {
+  @apply p-3 border-b border-white/20 text-gray-200;
+}
+
+.table th {
+  @apply font-semibold text-white/90;
+}
+
+/* ==========================
+   Notifications / Alerts
+========================== */
+.alert {
+  @apply p-4 rounded-lg text-white transition-all duration-300;
+}
+
+.alert-success { @apply bg-green-500/70; }
+.alert-error   { @apply bg-red-500/70; }
+.alert-info    { @apply bg-blue-500/70; }
+
+/* ==========================
+   Misc Utilities
+========================== */
+.flex-center {
+  @apply flex items-center justify-center;
+}
+
+.transition-all {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.shadow-glow {
+  @apply shadow-lg hover:shadow-2xl;
+}
