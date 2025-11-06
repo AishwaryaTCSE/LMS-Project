@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/user.model');
 const { success, error } = require('../utils/response');
+const logger = require('../utils/logger');
 
 const signToken = (user) =>
   jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
@@ -92,19 +93,66 @@ exports.register = async (req, res, next) => {
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return error(res, 'Email and password are required', 400);
+    
+    // 1. Check if email and password exist
+    if (!email || !password) {
+      return error(res, 'Please provide email and password', 400);
+    }
 
-    const emailNormalized = email.toLowerCase();
-    const user = await User.findOne({ email: emailNormalized });
-    if (!user) return error(res, 'Invalid credentials', 401);
+    // 2. Find user by email and select password
+    const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
+    
+    // 3. Check if user exists
+    if (!user) {
+      console.log('Login failed: No user found with email:', email);
+      return error(res, 'Incorrect email or password', 401);
+    }
 
-    const match = await user.comparePassword(password);
-    if (!match) return error(res, 'Invalid credentials', 401);
+    // 4. Check if password is correct
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      console.log('Login failed: Invalid password for user:', email);
+      return error(res, 'Incorrect email or password', 401);
+    }
 
+    // 5. Check if user is active
+    if (!user.isActive) {
+      console.log('Login failed: User account is inactive:', email);
+      return error(res, 'Your account has been deactivated. Please contact support.', 401);
+    }
+
+    // 6. If everything is ok, generate token
     const token = signToken(user);
-    success(res, {
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+    
+    // 7. Update last login
+    user.lastLogin = Date.now();
+    await user.save({ validateBeforeSave: false });
+
+    // 8. Remove password from output
+    user.password = undefined;
+
+    // Prepare user data for response
+    const userData = {
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+      dateOfBirth: user.dateOfBirth,
+      isActive: user.isActive,
+      emailVerified: user.emailVerified,
+      createdAt: user.createdAt
+    };
+
+    console.log('Login successful for user:', userData.email, 'Role:', userData.role);
+    
+    // Send response in the expected format
+    res.status(200).json({
+      success: true,
       token,
+      user: userData
     });
   } catch (err) {
     logger.error(`Login error: ${err.message}`, { error: err });
