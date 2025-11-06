@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { addCourse } from '../../api/courseApi';
+import { createCourse } from '../../api/courseApi';
 
 const AddCourse = () => {
   const [formData, setFormData] = useState({
@@ -23,12 +23,16 @@ const AddCourse = () => {
     setError('');
     setMessage('');
     try {
-      const response = await addCourse(formData);
-      if (response.data.success) {
+      const response = await createCourse({
+        title: formData.title,
+        description: formData.description,
+        syllabus: undefined
+      });
+      if (response && response.success) {
         setMessage('Course added successfully!');
         setFormData({ title: '', description: '', instructorName: '', category: '', duration: '' });
       } else {
-        setError(response.data.message || 'Failed to add course');
+        setError(response?.message || 'Failed to add course');
       }
     } catch (err) {
       setError(err.message || 'Something went wrong');
@@ -55,7 +59,7 @@ const AddCourse = () => {
             placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
             value={formData[field]}
             onChange={handleChange}
-            className="px-3 py-2 rounded-lg bg-white/20 backdrop-blur-sm text-white placeholder-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="px-3 py-2 rounded-lg bg-white text-gray-900 placeholder-gray-500 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         ))}
 

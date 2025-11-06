@@ -1,7 +1,7 @@
 // src/components/ProtectedRoute.jsx
 import React from 'react';
 import useAuth from '../hooks/useAuth';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import Loader from './Loader';
 
 /**
@@ -18,6 +18,7 @@ const ProtectedRoute = ({
   children, 
   roles = [], 
   role = null, 
+  allowedRoles = [],
   redirectPath = '/login',
   requireAuth = true 
 }) => {
@@ -38,13 +39,13 @@ const ProtectedRoute = ({
   }
 
   // If user is logged in but doesn't have required role
-  const allowedRoles = roles.length ? roles : (role ? [role] : []);
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
+  const effectiveAllowedRoles = roles.length ? roles : (role ? [role] : allowedRoles);
+  if (effectiveAllowedRoles.length > 0 && !effectiveAllowedRoles.includes(user?.role)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
   // If we have a user and they have the required role (or no role required)
-  return children;
+  return children || <Outlet />;
 };
 
 export default ProtectedRoute;

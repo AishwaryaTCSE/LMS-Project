@@ -30,4 +30,26 @@ router.post(
 // GET /courses/:id - get details of a specific course
 router.get('/:id', courseCtrl.getCourse);
 
+// PUT /courses/:id - update a course (instructor/admin only)
+router.put(
+  '/:id',
+  auth,
+  permit('instructor', 'admin'),
+  [
+    body('title').optional().isString(),
+    body('description').optional().isString(),
+    body('syllabus').optional()
+  ],
+  validate,
+  courseCtrl.updateCourse
+);
+
+// DELETE /courses/:id - delete a course (instructor/admin only)
+router.delete(
+  '/:id',
+  auth,
+  permit('instructor', 'admin'),
+  courseCtrl.deleteCourse
+);
+
 module.exports = router;

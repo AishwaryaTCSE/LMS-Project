@@ -15,6 +15,7 @@ const courseRoutes = require('./routes/course.routes');
 const assessmentRoutes = require('./routes/assessment.routes');
 const discussionRoutes = require('./routes/discussion.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
+const notificationRoutes = require('./routes/notification.routes');
 const reportRoutes = require('./routes/report.routes');
 
 // Middlewares
@@ -56,6 +57,7 @@ app.use('/api/v1/courses', auth, courseRoutes);
 app.use('/api/v1/assessments', auth, assessmentRoutes);
 app.use('/api/v1/discussions', auth, discussionRoutes);
 app.use('/api/v1/analytics', auth, analyticsRoutes);
+app.use('/api/v1/notifications', auth, notificationRoutes);
 app.use('/api/v1/reports', auth, reportRoutes);
 
 // ---------- Health Check ----------

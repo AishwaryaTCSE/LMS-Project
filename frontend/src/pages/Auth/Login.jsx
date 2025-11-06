@@ -33,46 +33,54 @@ const Login = () => {
         hasToken: !!response?.token
       });
       
-      if (response?.user) {
-        console.log('[3/4] User authenticated successfully');
-        console.log('  - User ID:', response.user.id);
-        console.log('  - User Role:', response.user.role);
-        console.log('  - Full Name:', response.user.fullName || 'N/A');
-        
-        // Reset loading state
-        setLoading(false);
-        
-        // Get the redirect URL from query params
-        const redirectTo = searchParams.get('redirect');
-        
-        if (redirectTo) {
-          console.log(`[4/4] Redirecting to custom path: ${redirectTo}`);
-          const decodedRedirect = decodeURIComponent(redirectTo);
-          const safeRedirect = decodedRedirect.startsWith('/') ? decodedRedirect : `/${decodedRedirect}`;
-          console.log('Final redirect path:', safeRedirect);
-          navigate(safeRedirect, { replace: true });
-        } else {
-          // Determine the dashboard path based on user role
-          let dashboardPath = '/student/dashboard'; // Default fallback
-          
-          if (response.user.role === 'admin') {
-            dashboardPath = '/admin/dashboard';
-          } else if (response.user.role === 'instructor' || response.user.role === 'teacher') {
-            dashboardPath = '/instructor/dashboard';
-          }
-          
-          console.log(`[4/4] Redirecting to: ${dashboardPath}`);
-          console.log('  - User Role:', response.user.role);
-          console.log('  - Selected Path:', dashboardPath);
-          
-          // Navigate using react-router (no full reload)
-          navigate(dashboardPath, { replace: true });
-        }
-      } else {
+      if (!response?.user) {
         console.error('Invalid response format from login:', response);
         setLoading(false);
         throw new Error('Invalid response from server');
       }
+      
+      console.log('[3/4] User authenticated successfully');
+      console.log('  - User ID:', response.user.id);
+      console.log('  - User Role:', response.user.role);
+      console.log('  - Full Name:', response.user.fullName || 'N/A');
+      
+      // Get the redirect URL from query params
+      const redirectTo = searchParams.get('redirect');
+      
+      if (redirectTo) {
+        console.log(`[4/4] Redirecting to custom path: ${redirectTo}`);
+        const decodedRedirect = decodeURIComponent(redirectTo);
+        const safeRedirect = decodedRedirect.startsWith('/') ? decodedRedirect : `/${decodedRedirect}`;
+        console.log('Final redirect path:', safeRedirect);
+        navigate(safeRedirect, { replace: true });
+        return;
+      }
+      
+      // Determine the dashboard path based on user role
+      const userRole = response.user.role?.toLowerCase() || '';
+      console.log(`[4/4] User role: ${userRole}`);
+      
+      let redirectPath = '/';
+      
+      switch(userRole) {
+        case 'admin':
+          redirectPath = '/admin/dashboard';
+          break;
+        case 'instructor':
+        case 'teacher':
+          redirectPath = '/instructor/dashboard';
+          break;
+        case 'student':
+          redirectPath = '/student/dashboard';
+          break;
+        default:
+          console.warn(`[4/4] Unknown role: ${userRole}, redirecting to home`);
+          redirectPath = '/';
+      }
+      
+      console.log(`[5/5] Redirecting to: ${redirectPath}`);
+      navigate(redirectPath, { replace: true });
+      
     } catch (err) {
       console.error('Login error:', err);
       console.error('Error details:', {

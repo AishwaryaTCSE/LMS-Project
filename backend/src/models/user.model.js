@@ -59,6 +59,15 @@ const UserSchema = new mongoose.Schema({
   },
   avatar: { 
     type: String 
+  },
+  settings: {
+    timezone: { type: String, default: 'UTC' },
+    language: { type: String, default: 'en' },
+    notificationPrefs: {
+      messages: { type: Boolean, default: true },
+      enrollments: { type: Boolean, default: true },
+      weeklySummary: { type: Boolean, default: false }
+    }
   }
 }, { 
   timestamps: true,

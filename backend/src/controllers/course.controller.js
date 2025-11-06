@@ -45,3 +45,41 @@ exports.getCourse = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.updateCourse = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const update = {};
+    const allowed = ['title', 'description', 'syllabus'];
+    allowed.forEach((key) => {
+      if (req.body[key] !== undefined) update[key] = req.body[key];
+    });
+
+    const course = await Course.findByIdAndUpdate(
+      id,
+      { $set: update },
+      { new: true }
+    )
+      .populate('lessons')
+      .populate('instructor', 'name email');
+
+    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+
+    success(res, course);
+  } catch (err) {
+    console.error('Update Course Error:', err);
+    next(err);
+  }
+};
+
+exports.deleteCourse = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const course = await Course.findByIdAndDelete(id);
+    if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+    success(res, { message: 'Course deleted' });
+  } catch (err) {
+    console.error('Delete Course Error:', err);
+    next(err);
+  }
+};

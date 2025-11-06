@@ -51,14 +51,28 @@ export const login = async (credentials) => {
 
 export const getUserProfile = async (token) => {
   try {
+    console.log('Fetching user profile with token:', token ? 'token exists' : 'no token');
     const response = await axios.get('/users/me', {
       headers: {
         Authorization: `Bearer ${token}`
       }
     });
+    
+    console.log('Profile API response:', response.data);
+    
+    // Handle the response structure: { success: boolean, data: userData }
+    if (response.data && response.data.success !== undefined) {
+      return response.data.data;  // Return just the data part
+    }
+    
+    // Fallback for backward compatibility
     return response.data;
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('Error fetching user profile:', {
+      message: error.message,
+      status: error.response?.status,
+      response: error.response?.data
+    });
     throw error;
   }
 };

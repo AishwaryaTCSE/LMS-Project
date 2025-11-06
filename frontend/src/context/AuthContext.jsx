@@ -1,37 +1,86 @@
 // src/context/AuthProvider.jsx
-import React, { useState, useEffect, createContext } from 'react';
+import React, { useState, useEffect, createContext, useCallback } from 'react';
 import * as authApi from '../api/authApi';
 
 // ✅ Named export
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem('user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (token && !user) {
-      // Only fetch profile if we have a token but no user data
-      fetchProfile();
-    } else if (!token) {
+    console.log('AuthContext effect - Token:', !!token, 'User:', !!user);
+    if (token) {
+      // If we have a token but no user data, or if user data is invalid
+      if (!user || Object.keys(user).length === 0) {
+        console.log('Fetching profile with token...');
+        fetchProfile();
+      } else {
+        console.log('User data already exists, skipping fetch');
+        setLoading(false);
+      }
+    } else {
+      console.log('No token available, setting loading to false');
       setLoading(false);
     }
   }, [token, user]);
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
+    if (!token) {
+      console.log('No token available, skipping profile fetch');
+      setLoading(false);
+      return;
+    }
+    
     try {
-      // Use a profile endpoint ideally
-      const response = await authApi.getProfile(token); 
-      setUser(response.data.user);
+      console.log('Fetching user profile...');
+      setLoading(true);
+      setError(null);
+      
+      const response = await authApi.getProfile(token);
+      console.log('Profile API response:', response);
+      
+      // Handle the response structure: { success: boolean, data: userData }
+      const userData = response && response.data ? response.data : response;
+      
+      if (userData && userData._id) {
+        console.log('User data received:', userData);
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+      } else {
+        console.warn('Invalid user data structure received:', response);
+        // Clear invalid data and force re-authentication
+        setUser(null);
+        setToken('');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setError('Invalid user data received from server');
+        // Redirect to login after a short delay to allow state to update
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 100);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Failed to fetch profile:', err);
       setUser(null);
+      setToken('');
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setError(err.message || 'Failed to load user profile');
+      // Redirect to login after a short delay to allow state to update
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, user]);
 
   const login = async (credentials) => {
     console.log('AuthContext: Login initiated with credentials:', { email: credentials.email });
@@ -123,9 +172,20 @@ export const AuthProvider = ({ children }) => {
   // Compute isAuthenticated based on user and token
   const isAuthenticated = !!(user && token);
 
+  const value = {
+    user,
+    token,
+    loading,
+    error,
+    isAuthenticated: !!user && !!token,
+    login,
+    logout,
+    fetchProfile, // expose fetchProfile to allow manual refreshes
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading, isAuthenticated }}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
