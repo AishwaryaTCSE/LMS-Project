@@ -1,6 +1,10 @@
 const express = require("express");
+const http = require("http");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const { Server } = require("socket.io");
+const multer = require("multer");
+const path = require("path");
 require("dotenv").config();
 
 // Import routes
@@ -10,8 +14,13 @@ const userRoutes = require('./src/routes/user.routes');
 const adminRoutes = require('./src/routes/admin.routes');
 const analyticsRoutes = require('./src/routes/analytics.routes');
 const notificationRoutes = require('./src/routes/notification.routes');
+const messageRoutes = require('./src/routes/message.routes');
+const assignmentRoutes = require('./src/routes/assignments.router');
+const quizRoutes = require('./src/routes/quiz.routes');
+const gradebookRoutes = require('./src/routes/gradebook.routes');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // CORS configuration
@@ -41,12 +50,68 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // MongoDB connection
 mongoose
   .connect(process.env.MONGO_URI || "mongodb://127.0.0.1:27017/lms_project")
   .then(() => console.log("✅ MongoDB connected successfully"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
+
+// Socket.io configuration
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
+});
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log(`✅ User connected: ${socket.id}`);
+  
+  // Join user to their personal room
+  socket.on('join', (userId) => {
+    socket.join(`user_${userId}`);
+    console.log(`User ${userId} joined their room`);
+  });
+  
+  // Join conversation room
+  socket.on('join_conversation', (conversationId) => {
+    socket.join(`conversation_${conversationId}`);
+    console.log(`Socket ${socket.id} joined conversation ${conversationId}`);
+  });
+  
+  // Handle new message
+  socket.on('send_message', (data) => {
+    io.to(`conversation_${data.conversationId}`).emit('new_message', data);
+    // Notify recipient
+    if (data.recipientId) {
+      io.to(`user_${data.recipientId}`).emit('notification', {
+        type: 'message',
+        message: 'New message received',
+        data
+      });
+    }
+  });
+  
+  // Handle typing indicator
+  socket.on('typing', (data) => {
+    socket.to(`conversation_${data.conversationId}`).emit('user_typing', data);
+  });
+  
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    console.log(`❌ User disconnected: ${socket.id}`);
+  });
+});
+
+// Make io available to routes
+app.set('io', io);
 
 // Routes
 app.use('/api/v1/courses', courseRoutes);
@@ -55,6 +120,10 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/messages', messageRoutes);
+app.use('/api/v1/assignments', assignmentRoutes);
+app.use('/api/v1/quizzes', quizRoutes);
+app.use('/api/v1/gradebook', gradebookRoutes);
 
 // Basic route
 app.get("/", (req, res) => {
@@ -87,7 +156,8 @@ process.on('uncaughtException', (err) => {
   process.exit(1);
 });
 
-const server = app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`);
+  console.log(`✅ Socket.io server ready`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

@@ -1,236 +1,367 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { 
-  FiTrendingUp,
-  FiUsers,
-  FiMessageSquare,
+  FiUsers, 
+  FiBook, 
+  FiMessageSquare, 
   FiBarChart2,
-  FiBookOpen,
+  FiCalendar,
   FiClock,
+  FiBell,
   FiCheckCircle,
-  FiArrowRight,
+  FiAlertTriangle,
+  FiPlus,
   FiFileText,
-  FiBell
+  FiDollarSign,
+  FiBookOpen,
+  FiTrendingUp,
+  FiChevronRight,
+  FiActivity,
+  FiAward,
+  FiFile,
+  FiLayers,
+  FiVideo
 } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
-import CourseProgressChart from '../../components/Charts/CourseProgressChart';
-import { listStudents } from '../../api/studentApi';
-import * as courseApi from '../../api/courseApi';
+import { toast } from 'react-toastify';
+import { 
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
+import { useQuery } from '@tanstack/react-query';
+import io from 'socket.io-client';
+import axios from '../../api/axiosInstance';
+import useAuth from '../../hooks/useAuth';
 import { useNotifications } from '../../context/NotificationContext';
+import StatCard from '../../components/StatsCard';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorMessage from '../../components/ErrorMessage';
+import { 
+  getInstructorDashboardStats, 
+  getInstructorRecentActivities, 
+  getInstructorUpcomingEvents 
+} from '../../api/dashboardApi';
+import { 
+  getCourses, 
+  getAssignments, 
+  getQuizzes, 
+  getSubmissions 
+} from '../../api/instructorApi';
+
+// Activity Item Component
+const ActivityItem = ({ activity }) => (
+  <div className="py-3 flex items-start">
+    <div className={`p-2 rounded-full ${activity.color} bg-opacity-20 mr-3`}>
+      {activity.icon}
+    </div>
+    <div className="flex-1 min-w-0">
+      <p className="text-sm font-medium text-gray-900 truncate">{activity.title}</p>
+      <p className="text-xs text-gray-500 truncate">{activity.course}</p>
+      <p className="text-xs text-gray-400 mt-1">{activity.time}</p>
+    </div>
+  </div>
+);
+
+// Event Item Component
+const EventItem = ({ event }) => {
+  const getEventIcon = () => {
+    switch (event.type) {
+      case 'class':
+        return <FiBookOpen className="h-4 w-4 text-blue-500" />;
+      case 'meeting':
+        return <FiUsers className="h-4 w-4 text-green-500" />;
+      case 'assignment':
+        return <FiFileText className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <FiCalendar className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getEventColor = () => {
+    switch (event.type) {
+      case 'class':
+        return 'bg-blue-100 text-blue-800';
+      case 'meeting':
+        return 'bg-green-100 text-green-800';
+      case 'assignment':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  return (
+    <div className="flex items-start p-3 hover:bg-gray-50 rounded-lg transition-colors">
+      <div className={`p-2 rounded-lg ${getEventColor()} mr-3`}>
+        {getEventIcon()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">{event.title}</p>
+        <div className="flex items-center text-xs text-gray-500 mt-1">
+          <FiClock className="mr-1" size={12} />
+          <span>{event.time}</span>
+        </div>
+        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1 ${getEventColor()}">
+          {event.date}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// Colors for charts
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 const InstructorDashboard = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [kpis, setKpis] = useState({ totalStudents: 0, activeCourses: 0, unreadMessages: 0, earnings: 0 });
-  const { unreadMessageCount } = useNotifications();
+  const { user } = useAuth();
   const navigate = useNavigate();
-  
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const [{ items: students = [], pagination }, courses] = await Promise.all([
-          listStudents({ page: 1, limit: 1 }),
-          courseApi.getCourses()
-        ]);
-        setKpis({
-          totalStudents: pagination?.total || students.length || 0,
-          activeCourses: Array.isArray(courses?.data) ? courses.data.length : Array.isArray(courses) ? courses.length : 0,
-          unreadMessages: unreadMessageCount || 0,
-          earnings: 0
-        });
-        setError('');
-      } catch (e) {
-        setError(e.message || 'Failed to load KPIs');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [unreadMessageCount]);
+  const { unreadMessageCount } = useNotifications();
+  const [socket, setSocket] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const stats = useMemo(() => ([
-    { title: 'Total Students', value: String(kpis.totalStudents), change: '', icon: <FiUsers className="h-6 w-6" />, color: 'bg-blue-100 text-blue-600' },
-    { title: 'Active Courses', value: String(kpis.activeCourses), change: '', icon: <FiBookOpen className="h-6 w-6" />, color: 'bg-green-100 text-green-600' },
-    { title: 'Messages', value: String(kpis.unreadMessages), change: 'unread', icon: <FiMessageSquare className="h-6 w-6" />, color: 'bg-purple-100 text-purple-600' },
-    { title: 'Earnings', value: `$${kpis.earnings}`, change: '', icon: <FiBarChart2 className="h-6 w-6" />, color: 'bg-yellow-100 text-yellow-600' }
-  ]), [kpis]);
-  
-  // Mock recent activities
+  // Fetch dashboard data using React Query
+  const { 
+    data: stats, 
+    isLoading: statsLoading, 
+    error: statsError 
+  } = useQuery({
+    queryKey: ['dashboardStats'],
+    queryFn: getInstructorDashboardStats,
+    refetchOnWindowFocus: false,
+  });
+
+  const { 
+    data: activities, 
+    isLoading: activitiesLoading 
+  } = useQuery({
+    queryKey: ['recentActivities'],
+    queryFn: getInstructorRecentActivities
+  });
+
+  const { 
+    data: events, 
+    isLoading: eventsLoading 
+  } = useQuery({
+    queryKey: ['upcomingEvents'],
+    queryFn: getInstructorUpcomingEvents
+  });
+
+  const { 
+    data: coursesData, 
+    isLoading: coursesLoading 
+  } = useQuery({
+    queryKey: ['instructorCourses', user?._id],
+    queryFn: () => getCourses({ instructor: user?._id }),
+    enabled: !!user?._id
+  });
+
+  // Set up WebSocket connection for real-time updates
+  useEffect(() => {
+    const newSocket = io(import.meta.env.VITE_APP_API_URL);
+    setSocket(newSocket);
+
+    newSocket.on('connect', () => {
+      console.log('Connected to WebSocket');
+      newSocket.emit('joinInstructorRoom', user?._id);
+    });
+
+    newSocket.on('newSubmission', (data) => {
+      toast.info(`New submission received for ${data.assignmentTitle}`);
+      // Refetch data
+      queryClient.invalidateQueries('dashboardStats');
+    });
+
+    newSocket.on('newMessage', (data) => {
+      setUnreadCount(prev => prev + 1);
+      toast.info(`New message from ${data.senderName}`);
+    });
+
+    return () => newSocket.close();
+  }, [user?._id]);
+
+  // Sample data for charts
+  const coursePerformanceData = [
+    { name: 'Mathematics 101', students: 45, completion: 78, engagement: 82 },
+    { name: 'Science 201', students: 32, completion: 65, engagement: 71 },
+    { name: 'Physics 101', students: 28, completion: 81, engagement: 89 },
+    { name: 'Chemistry 101', students: 36, completion: 72, engagement: 75 },
+    { name: 'Biology 101', students: 29, completion: 68, engagement: 79 },
+  ];
+
+  // Sample recent activities data
   const recentActivities = [
     { 
       id: 1, 
-      title: 'New assignment submitted', 
-      course: 'Web Development', 
-      time: '2 hours ago', 
-      type: 'submission' 
+      type: 'assignment', 
+      title: 'Assignment 1 graded', 
+      course: 'Mathematics 101', 
+      time: '2 hours ago',
+      icon: <FiBook className="text-blue-500" />,
+      color: 'bg-blue-100 text-blue-600'
     },
     { 
       id: 2, 
-      title: 'Course updated', 
-      course: 'React Fundamentals', 
-      time: '5 hours ago', 
-      type: 'update' 
+      type: 'message', 
+      title: 'New message from John Doe', 
+      course: 'Science 201', 
+      time: '5 hours ago',
+      icon: <FiMessageSquare className="text-green-500" />,
+      color: 'bg-green-100 text-green-600'
     },
     { 
       id: 3, 
-      title: 'New student enrolled', 
-      course: 'JavaScript Basics', 
-      time: '1 day ago', 
-      type: 'enrollment' 
+      type: 'submission', 
+      title: 'New submission received', 
+      course: 'Physics 101', 
+      time: '1 day ago',
+      icon: <FiCheckCircle className="text-purple-500" />,
+      color: 'bg-purple-100 text-purple-600'
     }
   ];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        <span className="ml-3 text-gray-600">Loading dashboard...</span>
-      </div>
-    );
+  // Sample upcoming events data
+  const upcomingEvents = [
+    { 
+      id: 1, 
+      title: 'Class: Advanced Calculus', 
+      time: '10:00 AM - 11:30 AM', 
+      date: 'Tomorrow',
+      type: 'class'
+    },
+    { 
+      id: 2, 
+      title: 'Faculty Meeting', 
+      time: '2:00 PM - 3:30 PM', 
+      date: 'Tomorrow',
+      type: 'meeting'
+    },
+    { 
+      id: 3, 
+      title: 'Assignment Due: Linear Algebra', 
+      time: '11:59 PM', 
+      date: 'In 2 days',
+      type: 'assignment'
+    }
+  ];
+
+  // Memoized stats cards data
+  const statsCards = useMemo(() => ([
+    { title: 'Total Students', value: stats ? String(stats.totalStudents || 0) : '0', change: '', icon: <FiUsers className="h-6 w-6" />, color: 'bg-blue-500' },
+    { title: 'Total Courses', value: stats ? String(stats.totalCourses || 0) : '0', change: '', icon: <FiBookOpen className="h-6 w-6" />, color: 'bg-green-500' },
+    { title: 'Messages', value: stats ? String(stats.unreadMessages || 0) : '0', change: 'unread', icon: <FiMessageSquare className="h-6 w-6" />, color: 'bg-purple-500' },
+    { title: 'Pending Tasks', value: stats ? String(stats.pendingTasks || 0) : '0', change: '', icon: <FiAlertTriangle className="h-6 w-6" />, color: 'bg-yellow-500' }
+  ]), [stats]);
+
+  if (statsLoading || activitiesLoading || eventsLoading || coursesLoading) {
+    return <LoadingSpinner />;
   }
 
-  if (error) {
-    return (
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-red-200 max-w-3xl mx-auto my-8">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
-            <svg className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h3 className="text-lg font-medium text-red-800">Error loading dashboard</h3>
-            </div>
-            <div className="mt-4">
-              <button
-                onClick={() => window.location.reload()}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        </div>
-      
-    );
+  if (statsError) {
+    return <ErrorMessage message="Failed to load dashboard data" />;
   }
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Welcome back, Instructor</h1>
-        <p className="mt-1 text-sm text-gray-500">Here's what's happening with your courses today</p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <div
-            key={index}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md"
-          >
-            <div className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-                  <p className="mt-1 text-2xl font-semibold text-gray-900">{stat.value}</p>
-                  <p className="mt-1 text-xs text-gray-500">{stat.change}</p>
-                </div>
-                <div className={`p-3 rounded-lg ${stat.color}`}>
-                  {stat.icon}
-                </div>
-              </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow">
+        <div className="px-4 py-6 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.firstName}!</h1>
+              <p className="mt-1 text-sm text-gray-500">Here's what's happening with your courses today.</p>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Courses & Quick Actions */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Courses Overview */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Your Courses</h2>
-                <Link
-                  to="/instructor/courses"
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                  View all
-                </Link>
-              </div>
-            </div>
-            <div className="p-6">
-              <CourseProgressChart />
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-            </div>
-            <div className="p-4 space-y-2">
-              <button className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-center">
-                  <div className="p-2 rounded-lg bg-blue-100 text-blue-600 mr-3">
-                    <FiFileText className="w-5 h-5" />
-                  </div>
-                  <span className="text-sm font-medium">Create New Assignment</span>
-                </div>
-                <FiArrowRight className="text-gray-400" />
-              </button>
-              <button className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-center">
-                  <div className="p-2 rounded-lg bg-green-100 text-green-600 mr-3">
-                    <FiCheckCircle className="w-5 h-5" />
-                  </div>
-                  <span className="text-sm font-medium">Grade Submissions</span>
-                </div>
-                <FiArrowRight className="text-gray-400" />
-              </button>
-              <button className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-center">
-                  <div className="p-2 rounded-lg bg-purple-100 text-purple-600 mr-3">
-                    <FiMessageSquare className="w-5 h-5" />
-                  </div>
-                  <span className="text-sm font-medium">View Student Messages</span>
-                </div>
-                <FiArrowRight className="text-gray-400" />
+            <div className="flex space-x-3">
+              <button
+                onClick={() => navigate('/instructor/courses/new')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                <FiPlus className="mr-2" />
+                New Course
               </button>
             </div>
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-            <button className="text-sm font-medium text-indigo-600 hover:text-indigo-800">
-              View All
-            </button>
-          </div>
-          <ul className="divide-y divide-gray-100">
-            {recentActivities.map((activity) => (
-              <li 
-                key={activity.id} 
-                className="p-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 mt-1 text-gray-400">
-                    <FiBell className="h-5 w-5" />
-                  </div>
-                  <div className="ml-3 flex-1">
-                    <p className="text-sm text-gray-900">{activity.title}</p>
-                    <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                  </div>
-                </div>
-              </li>
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+            {statsCards.map((card, index) => (
+              <StatCard key={index} {...card} />
             ))}
-          </ul>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <Link 
+                to="/instructor/courses/new" 
+                className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="p-2 bg-indigo-100 rounded-full text-indigo-600 mb-2">
+                  <FiPlus size={16} />
+                </div>
+                <span className="text-xs text-center font-medium text-gray-700">New Course</span>
+              </Link>
+              <Link 
+                to="/instructor/assignments/new" 
+                className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="p-2 bg-green-100 rounded-full text-green-600 mb-2">
+                  <FiFileText size={16} />
+                </div>
+                <span className="text-xs text-center font-medium text-gray-700">New Assignment</span>
+              </Link>
+              <Link 
+                to="/instructor/announcements/new" 
+                className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="p-2 bg-yellow-100 rounded-full text-yellow-600 mb-2">
+                  <FiBell size={16} />
+                </div>
+                <span className="text-xs text-center font-medium text-gray-700">New Announcement</span>
+              </Link>
+              <Link 
+                to="/instructor/gradebook" 
+                className="flex flex-col items-center justify-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <div className="p-2 bg-purple-100 rounded-full text-purple-600 mb-2">
+                  <FiBarChart2 size={16} />
+                </div>
+                <span className="text-xs text-center font-medium text-gray-700">Gradebook</span>
+              </Link>
+            </div>
+          </div>
+          
+          {/* Quick Stats */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">Course Completion</span>
+                <span className="text-sm font-medium">78%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-blue-600 h-2 rounded-full" style={{ width: '78%' }}></div>
+              </div>
+              
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-sm text-gray-500">Student Engagement</span>
+                <span className="text-sm font-medium">85%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-green-500 h-2 rounded-full" style={{ width: '85%' }}></div>
+              </div>
+              
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-sm text-gray-500">Assignment Grading</span>
+                <span className="text-sm font-medium">65%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '65%' }}></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

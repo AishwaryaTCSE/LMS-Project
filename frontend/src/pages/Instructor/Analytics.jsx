@@ -71,6 +71,14 @@ const InstructorAnalytics = () => {
     return <Loader />;
   }
 
+  // Transform analytics data for the course performance chart
+  const coursePerformanceData = analyticsData?.courses?.map(course => ({
+    name: course.title.length > 20 ? `${course.title.substring(0, 20)}...` : course.title,
+    students: course.studentCount || 0,
+    completion: course.completionRate || 0,
+    revenue: course.revenue || 0,
+  })) || [];
+
   // Transform data for charts
   const studentEngagementData = analyticsData?.courses?.map((course, idx) => ({
     name: course.title?.substring(0, 10) || `Course ${idx + 1}`,

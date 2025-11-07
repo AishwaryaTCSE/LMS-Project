@@ -1,45 +1,25 @@
-const mongoose = require('mongoose');
-const { generateReport } = require('../services/analytics.service');
-require('dotenv').config();
+const request = require('supertest');
+const app = require('../app');
 
-// Use a separate test database
-const MONGO_URI_TEST = process.env.MONGO_URI_TEST || 'mongodb://127.0.0.1:27017/lms_project_test';
+describe('Analytics API', () => {
+  let token;
 
-describe('Analytics Service', () => {
   beforeAll(async () => {
-    jest.setTimeout(30000); // Increase timeout for slow DB connections
-    await mongoose.connect(MONGO_URI_TEST, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'admin@test.com', password: 'password123' });
+    token = res.body.token;
   });
 
-  // Clean database before each test
-  beforeEach(async () => {
-    await mongoose.connection.db.dropDatabase();
-  });
-
-  afterAll(async () => {
-    await mongoose.disconnect();
-  });
-
-  test('should generate valid analytics report', async () => {
-    const report = await generateReport();
-
-    expect(report).toHaveProperty('totalCourses');
-    expect(report).toHaveProperty('totalStudents');
-    expect(report).toHaveProperty('totalInstructors');
-    expect(report).toHaveProperty('generatedAt');
-
-    // Type and value checks
-    expect(typeof report.totalCourses).toBe('number');
-    expect(typeof report.totalStudents).toBe('number');
-    expect(typeof report.totalInstructors).toBe('number');
-    expect(report.generatedAt).toBeInstanceOf(Date);
-
-    // Values should be non-negative
-    expect(report.totalCourses).toBeGreaterThanOrEqual(0);
-    expect(report.totalStudents).toBeGreaterThanOrEqual(0);
-    expect(report.totalInstructors).toBeGreaterThanOrEqual(0);
+  it('should get analytics overview', async () => {
+    const res = await request(app)
+      .get('/api/v1/analytics/overview')
+      .set('Authorization', `Bearer ${token}`);
+    
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toHaveProperty('data');
+    expect(res.body.data).toHaveProperty('totalCourses');
+    expect(res.body.data).toHaveProperty('totalStudents');
+    expect(res.body.data).toHaveProperty('insights');
   });
 });

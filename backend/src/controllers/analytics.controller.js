@@ -145,3 +145,67 @@ exports.generateReport = async (req, res, next) => {
     next(err);
   }
 };
+
+// Instructor Stats
+exports.getInstructorStats = async (req, res, next) => {
+  try {
+    const Course = require('../models/course.model');
+    const User = require('../models/user.model');
+    const Enrollment = require('../models/enrollment.model');
+
+    // Get instructor's courses
+    const courses = await Course.find({ instructor: req.user._id });
+    const courseIds = courses.map(course => course._id);
+
+    // Get total students across all courses
+    const totalStudents = await Enrollment.countDocuments({
+      course: { $in: courseIds },
+      status: 'enrolled'
+    });
+
+    // Get recent enrollments (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentEnrollments = await Enrollment.countDocuments({
+      course: { $in: courseIds },
+      status: 'enrolled',
+      enrolledAt: { $gte: thirtyDaysAgo }
+    });
+
+    // Calculate completion rate
+    const completedCourses = await Enrollment.countDocuments({
+      course: { $in: courseIds },
+      status: 'completed'
+    });
+
+    const completionRate = totalStudents > 0 
+      ? Math.round((completedCourses / totalStudents) * 100) 
+      : 0;
+
+    // Get average rating (if you have a rating system)
+    const coursesWithRatings = await Course.aggregate([
+      { $match: { _id: { $in: courseIds } } },
+      { $group: {
+          _id: null,
+          avgRating: { $avg: "$rating" },
+          totalRatings: { $sum: "$ratingCount" }
+      }}
+    ]);
+
+    const stats = {
+      totalCourses: courses.length,
+      totalStudents,
+      recentEnrollments,
+      completionRate,
+      averageRating: coursesWithRatings[0]?.avgRating?.toFixed(1) || 0,
+      totalRatings: coursesWithRatings[0]?.totalRatings || 0,
+      lastUpdated: new Date()
+    };
+
+    success(res, stats);
+  } catch (err) {
+    console.error('Get instructor stats error:', err);
+    next(err);
+  }
+};

@@ -6,10 +6,12 @@ import {
   FiAward,
   FiClock,
   FiMessageSquare,
-  FiCalendar
+  FiCalendar,
+  FiTrendingUp
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { getStudentDashboard } from '../../api/dashboardApi';
+import { getStudentPerformance } from '../../api/gradebookApi';
 import Loader from '../../components/Loader';
 import useAuth from '../../hooks/useAuth';
 
@@ -29,6 +31,7 @@ const formatDistanceToNow = (date) => {
 
 const StudentDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
+  const [performanceData, setPerformanceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -38,29 +41,47 @@ const StudentDashboard = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await getStudentDashboard();
-        setDashboardData(response.data || response);
+        
+        // Fetch dashboard and gradebook data in parallel
+        const [dashboardResponse, gradebookResponse] = await Promise.allSettled([
+          getStudentDashboard(),
+          user?._id ? getStudentPerformance(user._id) : Promise.resolve(null)
+        ]);
+        
+        // Handle dashboard data
+        if (dashboardResponse.status === 'fulfilled') {
+          setDashboardData(dashboardResponse.value?.data || dashboardResponse.value);
+        } else {
+          setDashboardData({
+            coursesEnrolled: 0,
+            assignmentsPending: 0,
+            quizzesCompleted: 0,
+            overallGrade: 0,
+            courses: [],
+            upcomingAssignments: [],
+            recentActivities: [],
+            performanceData: []
+          });
+        }
+        
+        // Handle gradebook performance data
+        if (gradebookResponse.status === 'fulfilled' && gradebookResponse.value) {
+          setPerformanceData(gradebookResponse.value?.data);
+        }
+        
         setError('');
       } catch (err) {
         console.error('Dashboard error:', err);
         setError(err.response?.data?.message || err.message || 'Failed to load dashboard data');
-        // Set default data to prevent blank screen
-        setDashboardData({
-          coursesEnrolled: 0,
-          assignmentsPending: 0,
-          quizzesCompleted: 0,
-          overallGrade: 0,
-          courses: [],
-          upcomingAssignments: [],
-          recentActivities: [],
-          performanceData: []
-        });
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   if (loading) {
     return (
@@ -89,7 +110,7 @@ const StudentDashboard = () => {
   const stats = [
     { 
       title: 'Courses Enrolled', 
-      value: dashboardData?.coursesEnrolled || 0, 
+      value: performanceData?.totalCourses || dashboardData?.coursesEnrolled || 0, 
       icon: <FiBookOpen className="w-8 h-8" />,
       color: 'bg-purple-500'
     },
@@ -100,14 +121,14 @@ const StudentDashboard = () => {
       color: 'bg-orange-500'
     },
     { 
-      title: 'Quizzes Completed', 
-      value: dashboardData?.quizzesCompleted || 0, 
-      icon: <FiCheckCircle className="w-8 h-8" />,
-      color: 'bg-yellow-500'
+      title: 'Average GPA', 
+      value: performanceData?.averageGPA?.toFixed(2) || '0.00', 
+      icon: <FiTrendingUp className="w-8 h-8" />,
+      color: 'bg-green-500'
     },
     { 
       title: 'Overall Grade', 
-      value: `${dashboardData?.overallGrade || 0}%`, 
+      value: `${performanceData?.averagePercentage?.toFixed(1) || dashboardData?.overallGrade || 0}%`, 
       icon: <FiAward className="w-8 h-8" />,
       color: 'bg-blue-600'
     }
@@ -231,30 +252,47 @@ const StudentDashboard = () => {
 
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* My Courses */}
+        {/* My Courses with Grades */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">My Courses</h3>
           <div className="space-y-4">
-            {(dashboardData?.courses || []).slice(0, 5).map((course, idx) => (
+            {(performanceData?.courses || dashboardData?.courses || []).slice(0, 5).map((course, idx) => (
               <div key={idx} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
                 <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                  <span className="text-purple-600 font-medium">{course.name?.[0] || 'C'}</span>
+                  <span className="text-purple-600 font-medium">
+                    {(course.courseName || course.name)?.[0] || 'C'}
+                  </span>
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{course.name || 'Untitled Course'}</p>
-                  <p className="text-xs text-gray-500">{course.instructor || 'Instructor'}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {course.courseName || course.name || 'Untitled Course'}
+                  </p>
+                  {course.letterGrade && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                        {course.letterGrade}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {course.percentage?.toFixed(1)}%
+                      </span>
+                    </div>
+                  )}
+                  {!course.letterGrade && course.instructor && (
+                    <p className="text-xs text-gray-500">{course.instructor}</p>
+                  )}
                 </div>
                 <button 
-                  onClick={() => navigate('/student/courses')}
+                  onClick={() => navigate(`/student/courses/${course.courseId || course.id}`)}
                   className="p-2 hover:bg-gray-100 rounded-full"
                 >
                   <FiMessageSquare className="w-4 h-4 text-gray-600" />
                 </button>
               </div>
             ))}
-            {(!dashboardData?.courses || dashboardData.courses.length === 0) && (
+            {(!performanceData?.courses && !dashboardData?.courses) || 
+             ((performanceData?.courses?.length === 0) && (dashboardData?.courses?.length === 0)) ? (
               <p className="text-sm text-gray-500 text-center py-4">No courses enrolled yet</p>
-            )}
+            ) : null}
           </div>
           <button 
             onClick={() => navigate('/student/courses')}

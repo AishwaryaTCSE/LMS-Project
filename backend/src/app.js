@@ -3,10 +3,12 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
+const { connectRedis } = require('./config/redis');
 const logger = require('./utils/logger');
+const { rateLimiter, authLimiter } = require('./middlewares/rateLimiter');
+const analyticsJob = require('./jobs/analytics.job');
 
 // Import Routes
 const authRoutes = require('./routes/auth.routes');
@@ -44,33 +46,53 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev')); // Dev logging
 
+// ---------- Initialize Services ----------
+const startServices = async () => {
+  try {
+    // Connect to Redis
+    await connectRedis();
+    
+    // Start analytics job in non-test environment
+    if (process.env.NODE_ENV !== 'test') {
+      analyticsJob.start();
+    }
+    
+    logger.info('Services initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize services:', error);
+    process.exit(1);
+  }
+};
+
+// Start all services
+startServices();
+
 // ---------- Rate Limiting ----------
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 100, // max 100 requests per window per IP
-  message: 'Too many requests, please try again later.'
-});
-app.use(limiter);
+// Apply rate limiting
+app.use('/api/', rateLimiter);
+app.use('/api/auth/', authLimiter);
 
 // ---------- API Routes ----------
 
 // Public routes
 app.use('/api/v1/auth', authRoutes);
 
-// Role-specific routes (NEW STRUCTURE)
-app.use('/api/v1/admin', adminRoutes);
-app.use('/api/v1/instructor', instructorRoutes);
-app.use('/api/v1/student', studentRoutes);
-
-// Legacy routes (for backward compatibility)
+// Legacy routes (for backward compatibility) - mount these first
 app.use('/api/v1/users', auth, userRoutes);
-app.use('/api/v1/courses', auth, courseRoutes);
 app.use('/api/v1/assessments', auth, assessmentRoutes);
 app.use('/api/v1/discussions', auth, discussionRoutes);
 app.use('/api/v1/analytics', auth, analyticsRoutes);
 app.use('/api/v1/notifications', auth, notificationRoutes);
 app.use('/api/v1/reports', auth, reportRoutes);
 app.use('/api/v1/dashboard', auth, dashboardRoutes);
+
+// Role-specific routes (NEW STRUCTURE) - mount these after legacy routes
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/instructor', instructorRoutes);
+app.use('/api/v1/student', studentRoutes);
+
+// Mount the courses route last to prevent conflicts
+app.use('/api/v1/courses', auth, courseRoutes);
 
 // ---------- Health Check ----------
 app.get('/healthz', (req, res) => {
