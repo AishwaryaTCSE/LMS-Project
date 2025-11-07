@@ -1,5 +1,5 @@
 // src/pages/Instructor/Analytics.jsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FiUsers, 
   FiBarChart2, 
@@ -8,8 +8,11 @@ import {
   FiDownload,
   FiCalendar,
   FiFilter,
-  FiChevronDown
+  FiChevronDown,
+  FiActivity
 } from 'react-icons/fi';
+import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
 import {
   LineChart, 
   Line, 
@@ -25,32 +28,88 @@ import {
   Legend, 
   ResponsiveContainer 
 } from 'recharts';
+import { getInstructorAnalytics } from '../../api/instructorApi';
+import Loader from '../../components/Loader';
 
 const InstructorAnalytics = () => {
-  // Mock data - replace with actual data from your API
-  const studentEngagementData = [
-    { name: 'Jan', active: 4000, completed: 2400, dropped: 2400 },
-    { name: 'Feb', active: 3000, completed: 1398, dropped: 2210 },
-    { name: 'Mar', active: 2000, completed: 9800, dropped: 2290 },
-    { name: 'Apr', active: 2780, completed: 3908, dropped: 2000 },
-    { name: 'May', active: 1890, completed: 4800, dropped: 2181 },
-    { name: 'Jun', active: 2390, completed: 3800, dropped: 2500 },
-    { name: 'Jul', active: 3490, completed: 4300, dropped: 2100 },
-  ];
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
-  const coursePerformanceData = [
-    { name: 'React Basics', students: 4000, completion: 65, revenue: 2400 },
-    { name: 'Advanced JS', students: 3000, completion: 82, revenue: 1398 },
-    { name: 'UI/UX Design', students: 2000, completion: 45, revenue: 9800 },
-    { name: 'Node.js', students: 2780, completion: 78, revenue: 3908 },
-    { name: 'Python', students: 1890, completion: 91, revenue: 4800 },
-  ];
+  useEffect(() => {
+    loadAnalytics();
+  }, []);
+
+  const loadAnalytics = async () => {
+    try {
+      setLoading(true);
+      const response = await getInstructorAnalytics();
+      const data = response.data || response;
+      setAnalyticsData(data);
+    } catch (error) {
+      console.error('Error loading analytics:', error);
+      toast.error('Failed to load analytics data');
+      // Set mock data as fallback
+      setAnalyticsData({
+        totalCourses: 0,
+        totalStudents: 0,
+        averageStudentsPerCourse: 0,
+        courses: []
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewActivity = (studentId) => {
+    setSelectedStudent(studentId);
+    // Fetch activity data for selected student
+    toast.info('Fetching activity data...');
+  };
+
+  if (loading) {
+    return <Loader />;
+  }
+
+  // Transform data for charts
+  const studentEngagementData = analyticsData?.courses?.map((course, idx) => ({
+    name: course.title?.substring(0, 10) || `Course ${idx + 1}`,
+    students: course.studentCount || 0
+  })) || [];
 
   const stats = [
-    { title: 'Total Students', value: '12,845', change: '+12.5%', changeType: 'increase', icon: <FiUsers className="h-6 w-6" />, color: 'bg-blue-100 text-blue-600' },
-    { title: 'Active Courses', value: '24', change: '+2', changeType: 'increase', icon: <FiBookOpen className="h-6 w-6" />, color: 'bg-green-100 text-green-600' },
-    { title: 'Total Revenue', value: '$48,240', change: '+8.2%', changeType: 'increase', icon: <FiDollarSign className="h-6 w-6" />, color: 'bg-purple-100 text-purple-600' },
-    { title: 'Completion Rate', value: '78%', change: '+5.3%', changeType: 'increase', icon: <FiBarChart2 className="h-6 w-6" />, color: 'bg-yellow-100 text-yellow-600' },
+    { 
+      title: 'Total Students', 
+      value: analyticsData?.totalStudents || 0, 
+      change: '+12.5%', 
+      changeType: 'increase', 
+      icon: <FiUsers className="h-6 w-6" />, 
+      color: 'bg-blue-100 text-blue-600' 
+    },
+    { 
+      title: 'Active Courses', 
+      value: analyticsData?.totalCourses || 0, 
+      change: `+${analyticsData?.totalCourses || 0}`, 
+      changeType: 'increase', 
+      icon: <FiBookOpen className="h-6 w-6" />, 
+      color: 'bg-green-100 text-green-600' 
+    },
+    { 
+      title: 'Avg Students/Course', 
+      value: Math.round(analyticsData?.averageStudentsPerCourse || 0), 
+      change: '+8.2%', 
+      changeType: 'increase', 
+      icon: <FiDollarSign className="h-6 w-6" />, 
+      color: 'bg-purple-100 text-purple-600' 
+    },
+    { 
+      title: 'Completion Rate', 
+      value: '78%', 
+      change: '+5.3%', 
+      changeType: 'increase', 
+      icon: <FiBarChart2 className="h-6 w-6" />, 
+      color: 'bg-yellow-100 text-yellow-600' 
+    },
   ];
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
@@ -115,7 +174,13 @@ const InstructorAnalytics = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-6">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-white overflow-hidden shadow rounded-lg">
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="bg-white overflow-hidden shadow rounded-lg"
+          >
             <div className="p-5">
               <div className="flex items-center">
                 <div className={`flex-shrink-0 rounded-md p-3 ${stat.color}`}>
@@ -136,7 +201,7 @@ const InstructorAnalytics = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 
@@ -257,38 +322,39 @@ const InstructorAnalytics = () => {
       {/* Recent Activity */}
       <div className="bg-white shadow overflow-hidden sm:rounded-lg">
         <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">Recent Activity</h3>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">Latest student activities and course updates</p>
+          <h3 className="text-lg leading-6 font-medium text-gray-900">Student Activity</h3>
+          <p className="mt-1 max-w-2xl text-sm text-gray-500">View activity data for selected students</p>
         </div>
         <div className="bg-white overflow-hidden">
           <ul className="divide-y divide-gray-200">
-            {[1, 2, 3, 4, 5].map((item) => (
-              <li key={item} className="px-6 py-4 hover:bg-gray-50">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
-                    {`U${item}`}
+            {analyticsData?.courses?.slice(0, 5).map((course, idx) => (
+              <li key={course.id || idx} className="px-6 py-4 hover:bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-medium">
+                      <FiBookOpen className="h-5 w-5" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-900">{course.title}</p>
+                      <p className="text-sm text-gray-500">{course.studentCount || 0} students enrolled</p>
+                    </div>
                   </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-900">User {item} completed "React Basics"</p>
-                    <p className="text-sm text-gray-500">2 hours ago • 92% score</p>
-                  </div>
-                  <div className="ml-auto">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Completed
-                    </span>
-                  </div>
+                  <button
+                    onClick={() => handleViewActivity(course.id)}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"
+                  >
+                    <FiActivity className="mr-1 h-4 w-4" />
+                    View Activity
+                  </button>
                 </div>
               </li>
             ))}
+            {(!analyticsData?.courses || analyticsData.courses.length === 0) && (
+              <li className="px-6 py-4 text-center text-gray-500">
+                No courses available
+              </li>
+            )}
           </ul>
-        </div>
-        <div className="bg-gray-50 px-4 py-3 text-right sm:px-6">
-          <button
-            type="button"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-          >
-            View All Activity
-          </button>
         </div>
       </div>
     </div>

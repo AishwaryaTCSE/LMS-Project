@@ -15,6 +15,8 @@ import {
   FiPlus,
   FiDownload
 } from 'react-icons/fi';
+import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
 import { listStudents, exportStudents, addStudent } from '../../api/studentApi';
 
 const InstructorStudents = () => {
@@ -281,23 +283,93 @@ const InstructorStudents = () => {
         )}
       </div>
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Add Student</h3>
-            <div className="space-y-3">
-              <input className="w-full border rounded px-3 py-2" placeholder="First name" value={newStudent.firstName} onChange={e=> setNewStudent({ ...newStudent, firstName: e.target.value })} />
-              <input className="w-full border rounded px-3 py-2" placeholder="Last name" value={newStudent.lastName} onChange={e=> setNewStudent({ ...newStudent, lastName: e.target.value })} />
-              <input className="w-full border rounded px-3 py-2" placeholder="Email" value={newStudent.email} onChange={e=> setNewStudent({ ...newStudent, email: e.target.value })} />
-              <input type="password" className="w-full border rounded px-3 py-2" placeholder="Password" value={newStudent.password} onChange={e=> setNewStudent({ ...newStudent, password: e.target.value })} />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Add Student</h3>
+              <button 
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <button className="px-4 py-2 rounded border" onClick={()=> setShowAddModal(false)}>Cancel</button>
-              <button className="px-4 py-2 rounded bg-indigo-600 text-white" onClick={async()=>{
-                await addStudent(newStudent);
-                setShowAddModal(false);
-                setNewStudent({ firstName: '', lastName: '', email: '', password: '' });
-                load();
-              }}>Save</button>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                <input 
+                  type="text"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                  placeholder="First name" 
+                  value={newStudent.firstName} 
+                  onChange={e=> setNewStudent({ ...newStudent, firstName: e.target.value })} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                <input 
+                  type="text"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                  placeholder="Last name" 
+                  value={newStudent.lastName} 
+                  onChange={e=> setNewStudent({ ...newStudent, lastName: e.target.value })} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input 
+                  type="email"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                  placeholder="Email" 
+                  value={newStudent.email} 
+                  onChange={e=> setNewStudent({ ...newStudent, email: e.target.value })} 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input 
+                  type="password" 
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+                  placeholder="Password (min 8 characters)" 
+                  value={newStudent.password} 
+                  onChange={e=> setNewStudent({ ...newStudent, password: e.target.value })} 
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button 
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50" 
+                onClick={()=> setShowAddModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" 
+                onClick={async()=>{
+                  try {
+                    if (!newStudent.firstName || !newStudent.lastName || !newStudent.email || !newStudent.password) {
+                      toast.error('Please fill all required fields');
+                      return;
+                    }
+                    if (newStudent.password.length < 8) {
+                      toast.error('Password must be at least 8 characters');
+                      return;
+                    }
+                    await addStudent(newStudent);
+                    toast.success('Student added successfully!');
+                    setShowAddModal(false);
+                    setNewStudent({ firstName: '', lastName: '', email: '', password: '' });
+                    load();
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || 'Failed to add student');
+                  }
+                }}
+                disabled={!newStudent.firstName || !newStudent.lastName || !newStudent.email || !newStudent.password}
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>

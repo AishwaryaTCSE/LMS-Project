@@ -45,4 +45,19 @@ router.post(
   assessment.createQuiz
 );
 
+// GET /assessment/assignment/all - get all assignments with filters
+router.get('/assignment/all', auth, assessment.getAllAssignments);
+
+// GET /assessment/assignment/:id - get assignment by ID
+router.get('/assignment/:id', auth, assessment.getAssignmentById);
+
+// PUT /assessment/assignment/:id - update assignment
+router.put('/assignment/:id', auth, permit('instructor', 'admin'), assessment.updateAssignment);
+
+// DELETE /assessment/assignment/:id - delete assignment
+router.delete('/assignment/:id', auth, permit('instructor', 'admin'), assessment.deleteAssignment);
+
+// GET /assessment/assignment/export/all - export assignments
+router.get('/assignment/export/all', auth, permit('instructor', 'admin'), assessment.exportAssignments);
+
 module.exports = router;

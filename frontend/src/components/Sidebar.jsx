@@ -34,9 +34,10 @@ const Sidebar = ({ role = 'student' }) => {
     instructor: [
       { name: 'Dashboard', path: '/instructor/dashboard' },
       { name: 'Courses', path: '/instructor/courses' },
-      { name: 'Assessments', path: '/instructor/assessments/assignment' },
-      { name: 'Analytics', path: '/instructor/analytics/reports' },
-      { name: 'Profile', path: '/instructor/profile' }
+      { name: 'Students', path: '/instructor/students' },
+      { name: 'Messages', path: '/instructor/messages' },
+      { name: 'Analytics', path: '/instructor/analytics' },
+      { name: 'Settings', path: '/instructor/settings' }
     ],
     admin: [
       { name: 'Dashboard', path: '/admin/dashboard' },

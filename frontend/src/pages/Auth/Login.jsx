@@ -57,25 +57,32 @@ const Login = () => {
       }
       
       // Determine the dashboard path based on user role
-      const userRole = response.user.role?.toLowerCase() || '';
-      console.log(`[4/4] User role: ${userRole}`);
+      const userRole = (response.user.role || '').toLowerCase();
+      console.log(`[4/4] User role from response:`, userRole);
       
       let redirectPath = '/';
       
-      switch(userRole) {
-        case 'admin':
-          redirectPath = '/admin/dashboard';
-          break;
-        case 'instructor':
-        case 'teacher':
-          redirectPath = '/instructor/dashboard';
-          break;
-        case 'student':
-          redirectPath = '/student/dashboard';
-          break;
-        default:
-          console.warn(`[4/4] Unknown role: ${userRole}, redirecting to home`);
-          redirectPath = '/';
+      // Log all available user data for debugging
+      console.log('User data from login response:', response.user);
+      
+      // Check if the role is valid
+      if (!userRole) {
+        console.error('No role found in user data');
+        throw new Error('User role not found');
+      }
+      
+      // Map roles to their respective dashboard paths
+      const rolePaths = {
+        'admin': '/admin/dashboard',
+        'instructor': '/instructor/dashboard',
+        'teacher': '/instructor/dashboard', // Alias for instructor
+        'student': '/student/dashboard'
+      };
+      
+      redirectPath = rolePaths[userRole] || '/';
+      
+      if (!rolePaths[userRole]) {
+        console.warn(`[4/4] Unknown or unsupported role: ${userRole}, redirecting to home`);
       }
       
       console.log(`[5/5] Redirecting to: ${redirectPath}`);

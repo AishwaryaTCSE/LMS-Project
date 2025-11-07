@@ -52,4 +52,13 @@ router.delete(
   courseCtrl.deleteCourse
 );
 
+// GET /courses/filter/all - get courses with filters, sorting, pagination
+router.get('/filter/all', auth, courseCtrl.getCoursesWithFilters);
+
+// POST /courses/bulk - bulk update courses
+router.post('/bulk', auth, permit('admin', 'instructor'), courseCtrl.bulkUpdateCourses);
+
+// GET /courses/export/all - export courses as CSV
+router.get('/export/all', auth, permit('admin', 'instructor'), courseCtrl.exportCourses);
+
 module.exports = router;

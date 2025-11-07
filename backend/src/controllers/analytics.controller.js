@@ -30,3 +30,118 @@ exports.list = async (req, res, next) => {
     next(err);
   }
 };
+
+// Admin Analytics
+exports.getAdminAnalytics = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    const User = require('../models/user.model');
+    const Course = require('../models/course.model');
+
+    // User growth data (last 6 months)
+    const userGrowth = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthStart = new Date();
+      monthStart.setMonth(monthStart.getMonth() - i);
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      
+      const monthEnd = new Date(monthStart);
+      monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+      const count = await User.countDocuments({
+        createdAt: { $gte: monthStart, $lt: monthEnd }
+      });
+
+      userGrowth.push({
+        month: monthStart.toLocaleString('default', { month: 'short' }),
+        users: count
+      });
+    }
+
+    // Course engagement
+    const courseEngagement = await Course.aggregate([
+      {
+        $project: {
+          title: 1,
+          studentCount: { $size: { $ifNull: ['$students', []] } }
+        }
+      },
+      { $sort: { studentCount: -1 } },
+      { $limit: 5 }
+    ]);
+
+    success(res, {
+      userGrowth,
+      courseEngagement,
+      totalUsers: await User.countDocuments(),
+      totalCourses: await Course.countDocuments(),
+      activeUsers: await User.countDocuments({ isActive: true })
+    });
+  } catch (err) {
+    console.error('Get Admin Analytics Error:', err);
+    next(err);
+  }
+};
+
+// Instructor Analytics
+exports.getInstructorAnalytics = async (req, res, next) => {
+  try {
+    const Course = require('../models/course.model');
+    const User = require('../models/user.model');
+
+    // Get instructor's courses
+    const courses = await Course.find({ instructor: req.user._id })
+      .populate('students', 'firstName lastName email')
+      .lean();
+
+    const analytics = {
+      totalCourses: courses.length,
+      totalStudents: courses.reduce((sum, course) => sum + (course.students?.length || 0), 0),
+      averageStudentsPerCourse: courses.length > 0 
+        ? courses.reduce((sum, course) => sum + (course.students?.length || 0), 0) / courses.length 
+        : 0,
+      courses: courses.map(course => ({
+        id: course._id,
+        title: course.title,
+        studentCount: course.students?.length || 0
+      }))
+    };
+
+    success(res, analytics);
+  } catch (err) {
+    console.error('Get Instructor Analytics Error:', err);
+    next(err);
+  }
+};
+
+// Generate Report
+exports.generateReport = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    const User = require('../models/user.model');
+    const Course = require('../models/course.model');
+
+    const report = {
+      generatedAt: new Date(),
+      summary: {
+        totalUsers: await User.countDocuments(),
+        totalStudents: await User.countDocuments({ role: 'student' }),
+        totalInstructors: await User.countDocuments({ role: { $in: ['instructor', 'teacher'] } }),
+        totalCourses: await Course.countDocuments(),
+        activeCourses: await Course.countDocuments({ students: { $exists: true, $ne: [] } })
+      }
+    };
+
+    success(res, report);
+  } catch (err) {
+    console.error('Generate Report Error:', err);
+    next(err);
+  }
+};

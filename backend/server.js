@@ -7,6 +7,7 @@ require("dotenv").config();
 const courseRoutes = require('./src/routes/course.routes');
 const authRoutes = require('./src/routes/auth.routes');
 const userRoutes = require('./src/routes/user.routes');
+const adminRoutes = require('./src/routes/admin.routes');
 const analyticsRoutes = require('./src/routes/analytics.routes');
 const notificationRoutes = require('./src/routes/notification.routes');
 
@@ -51,6 +52,7 @@ mongoose
 app.use('/api/v1/courses', courseRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 

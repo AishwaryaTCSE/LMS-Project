@@ -17,6 +17,12 @@ const discussionRoutes = require('./routes/discussion.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const reportRoutes = require('./routes/report.routes');
+const dashboardRoutes = require('./routes/dashboard.routes');
+
+// Role-specific routes
+const adminRoutes = require('./routes/admin.routes');
+const instructorRoutes = require('./routes/instructor.routes');
+const studentRoutes = require('./routes/student.routes');
 
 // Middlewares
 const errorMiddleware = require('./middlewares/error.middleware');
@@ -51,7 +57,12 @@ app.use(limiter);
 // Public routes
 app.use('/api/v1/auth', authRoutes);
 
-// Protected routes (require auth)
+// Role-specific routes (NEW STRUCTURE)
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/instructor', instructorRoutes);
+app.use('/api/v1/student', studentRoutes);
+
+// Legacy routes (for backward compatibility)
 app.use('/api/v1/users', auth, userRoutes);
 app.use('/api/v1/courses', auth, courseRoutes);
 app.use('/api/v1/assessments', auth, assessmentRoutes);
@@ -59,6 +70,7 @@ app.use('/api/v1/discussions', auth, discussionRoutes);
 app.use('/api/v1/analytics', auth, analyticsRoutes);
 app.use('/api/v1/notifications', auth, notificationRoutes);
 app.use('/api/v1/reports', auth, reportRoutes);
+app.use('/api/v1/dashboard', auth, dashboardRoutes);
 
 // ---------- Health Check ----------
 app.get('/healthz', (req, res) => {

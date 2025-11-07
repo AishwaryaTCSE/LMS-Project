@@ -58,4 +58,40 @@ router.get('/students/export', auth, permit('admin', 'teacher', 'instructor'), u
  */
 router.put('/me/settings', auth, userCtrl.updateMySettings);
 
+/**
+ * GET /users/all
+ * Get all users with filters, sorting, and pagination (admin only)
+ */
+router.get('/all', auth, permit('admin'), userCtrl.getAllUsersWithFilters);
+
+/**
+ * GET /users/:id
+ * Get user by ID (admin only)
+ */
+router.get('/:id', auth, permit('admin'), userCtrl.getUserById);
+
+/**
+ * PUT /users/:id
+ * Update user (admin only)
+ */
+router.put('/:id', auth, permit('admin'), userCtrl.updateUser);
+
+/**
+ * DELETE /users/:id
+ * Delete user (admin only)
+ */
+router.delete('/:id', auth, permit('admin'), userCtrl.deleteUser);
+
+/**
+ * POST /users/bulk
+ * Bulk update users (admin only)
+ */
+router.post('/bulk', auth, permit('admin'), userCtrl.bulkUpdateUsers);
+
+/**
+ * GET /users/export/all
+ * Export all users as CSV (admin only)
+ */
+router.get('/export/all', auth, permit('admin'), userCtrl.exportUsers);
+
 module.exports = router;

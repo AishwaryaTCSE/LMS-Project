@@ -1,6 +1,8 @@
 // App.jsx
 import React, { Suspense } from 'react';
 import { BrowserRouter } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { AuthProvider } from '../frontend/src/context/AuthContext';
 import { ThemeProvider } from '../frontend/src/context/ThemeContext';
 import { NotificationProvider } from '../frontend/src/context/NotificationContext';
@@ -26,6 +28,17 @@ function App() {
               <Suspense fallback={<LoadingFallback />}>
                 <AppRouter />
               </Suspense>
+              <ToastContainer
+                position="top-right"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+              />
             </BrowserRouter>
           </NotificationProvider>
         </AuthProvider>

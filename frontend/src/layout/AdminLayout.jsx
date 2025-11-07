@@ -1,20 +1,22 @@
-// AdminLayout.jsx
 import React from 'react';
+import { Outlet } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import Footer from '../components/Footer';
 
-const AdminLayout = ({ children }) => {
+const AdminLayout = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-r from-gray-100 via-gray-200 to-gray-300 flex flex-col">
-      <Navbar />
-      <div className="flex flex-1">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      <Navbar role="admin" />
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar role="admin" />
-        <main className="flex-1 p-6 backdrop-blur-lg bg-white/10 rounded-xl shadow-lg transition-all duration-300">
-          {children}
-        </main>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <main className="flex-1 overflow-y-auto p-6">
+            <Outlet />
+          </main>
+          <Footer />
+        </div>
       </div>
-      <Footer />
     </div>
   );
 };
