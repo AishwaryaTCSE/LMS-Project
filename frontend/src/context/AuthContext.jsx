@@ -97,7 +97,26 @@ export const AuthProvider = ({ children }) => {
       
       console.log('AuthContext: Raw response data:', response.data);
       
-      // Handle different response structures
+      // Extract user data and token from response
+      const { user, token } = response.data;
+      
+      if (!user || !token) {
+        throw new Error('Invalid user data received from server');
+      }
+      
+      // Store user data and token
+      setUser(user);
+      setToken(token);
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      console.log('AuthContext: User logged in successfully:', {
+        userId: user._id,
+        role: user.role,
+        email: user.email
+      });
+      
+      return { user, token };
       let newToken, userData;
       
       // Check if the response has data directly (Axios response)

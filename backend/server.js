@@ -1,3 +1,4 @@
+
 const express = require("express");
 const http = require("http");
 const mongoose = require("mongoose");
@@ -18,6 +19,9 @@ const messageRoutes = require('./src/routes/message.routes');
 const assignmentRoutes = require('./src/routes/assignments.router');
 const quizRoutes = require('./src/routes/quiz.routes');
 const gradebookRoutes = require('./src/routes/gradebook.routes');
+// === FIX: Import the instructor routes file ===
+const instructorRoutes = require('./src/routes/instructor.routes');
+// =============================================
 
 const app = express();
 const server = http.createServer(app);
@@ -35,7 +39,7 @@ const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, postman)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = `The CORS policy for this site does not allow access from the specified origin: ${origin}`;
       return callback(new Error(msg), false);
@@ -73,19 +77,19 @@ const io = new Server(server, {
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log(`✅ User connected: ${socket.id}`);
-  
+
   // Join user to their personal room
   socket.on('join', (userId) => {
     socket.join(`user_${userId}`);
     console.log(`User ${userId} joined their room`);
   });
-  
+
   // Join conversation room
   socket.on('join_conversation', (conversationId) => {
     socket.join(`conversation_${conversationId}`);
     console.log(`Socket ${socket.id} joined conversation ${conversationId}`);
   });
-  
+
   // Handle new message
   socket.on('send_message', (data) => {
     io.to(`conversation_${data.conversationId}`).emit('new_message', data);
@@ -98,12 +102,12 @@ io.on('connection', (socket) => {
       });
     }
   });
-  
+
   // Handle typing indicator
   socket.on('typing', (data) => {
     socket.to(`conversation_${data.conversationId}`).emit('user_typing', data);
   });
-  
+
   // Handle disconnect
   socket.on('disconnect', () => {
     console.log(`❌ User disconnected: ${socket.id}`);
@@ -124,6 +128,10 @@ app.use('/api/v1/messages', messageRoutes);
 app.use('/api/v1/assignments', assignmentRoutes);
 app.use('/api/v1/quizzes', quizRoutes);
 app.use('/api/v1/gradebook', gradebookRoutes);
+
+// === FIX: Mount the instructor routes at the correct base path ===
+app.use('/api/v1/instructor', instructorRoutes);
+// =================================================================
 
 // Basic route
 app.get("/", (req, res) => {

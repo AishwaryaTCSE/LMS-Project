@@ -1,18 +1,48 @@
 const Course = require('../models/course.model');
-const { success } = require('../utils/response');
+const User = require('../models/user.model');
+const { success, ErrorResponse, SuccessResponse } = require('../utils/response');
+const { uploadToCloudinary } = require('../config/cloudinary');
 
 exports.createCourse = async (req, res, next) => {
   try {
-    const { title, description, syllabus } = req.body;
+    const { title, description, subjects, startDate, endDate, price } = req.body;
+    
     if (!title || !description) {
-      return res.status(400).json({ success: false, message: 'Title and description are required' });
+      return new ErrorResponse('Title and description are required', 400).send(res);
+    }
+    
+    // Handle file upload if thumbnail exists
+    let thumbnail = '';
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file);
+      thumbnail = result.secure_url;
     }
 
-    const course = await Course.create({ title, description, syllabus, instructor: req.user._id });
-    success(res, course, 201);
-  } catch (err) {
-    console.error('Create Course Error:', err);
-    next(err);
+    const course = await Course.create({
+      title,
+      description,
+      subjects: subjects ? JSON.parse(subjects) : [],
+      instructor: req.user._id,
+      thumbnail,
+      startDate: startDate || Date.now(),
+      endDate: endDate || null,
+      price: price || 0
+    });
+
+    // Add course to instructor's courses
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { $addToSet: { courses: course._id } }
+    );
+
+    return new SuccessResponse(
+      course,
+      'Course created successfully',
+      201
+    ).send(res);
+  } catch (error) {
+    console.error('Create Course Error:', error);
+    next(error);
   }
 };
 
@@ -186,16 +216,75 @@ exports.exportCourses = async (req, res, next) => {
 // Get instructor's courses
 exports.getInstructorCourses = async (req, res, next) => {
   try {
-    const instructorId = req.user._id;
-    const courses = await Course.find({ instructor: instructorId })
-      .populate('students', 'firstName lastName email')
-      .sort({ createdAt: -1 })
-      .lean();
+    const courses = await Course.find({ instructor: req.user._id })
+      .populate('students', 'name email avatar')
+      .populate('subjects', 'name code')
+      .sort({ createdAt: -1 });
     
-    success(res, courses);
-  } catch (err) {
-    console.error('Get Instructor Courses Error:', err);
-    next(err);
+    return new SuccessResponse(
+      courses,
+      'Courses retrieved successfully'
+    ).send(res);
+  } catch (error) {
+    console.error('Get Instructor Courses Error:', error);
+    next(error);
+  }
+};
+
+// Get students enrolled in a course
+exports.getCourseStudents = async (req, res, next) => {
+  try {
+    const course = await Course.findById(req.params.courseId)
+      .select('students')
+      .populate('students', 'name email avatar');
+
+    if (!course) {
+      return new ErrorResponse('Course not found', 404).send(res);
+    }
+
+    // Check if the requesting user is the instructor
+    if (course.instructor.toString() !== req.user._id.toString()) {
+      return new ErrorResponse('Not authorized to view this course', 403).send(res);
+    }
+
+    return new SuccessResponse(
+      course.students,
+      'Students retrieved successfully'
+    ).send(res);
+  } catch (error) {
+    console.error('Get Course Students Error:', error);
+    next(error);
+  }
+};
+
+// Enroll students in a course
+exports.enrollStudents = async (req, res, next) => {
+  try {
+    const { studentIds } = req.body;
+    
+    const course = await Course.findOneAndUpdate(
+      { _id: req.params.courseId, instructor: req.user._id },
+      { $addToSet: { students: { $each: studentIds } } },
+      { new: true }
+    );
+
+    if (!course) {
+      return new ErrorResponse('Course not found or not authorized', 404).send(res);
+    }
+
+    // Add course to students' enrolled courses
+    await User.updateMany(
+      { _id: { $in: studentIds } },
+      { $addToSet: { enrolledCourses: course._id } }
+    );
+
+    return new SuccessResponse(
+      course,
+      'Students enrolled successfully'
+    ).send(res);
+  } catch (error) {
+    console.error('Enroll Students Error:', error);
+    next(error);
   }
 };
 

@@ -3,6 +3,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+// Import from the frontend/src directory
 import { AuthProvider } from '../frontend/src/context/AuthContext';
 import { ThemeProvider } from '../frontend/src/context/ThemeContext';
 import { NotificationProvider } from '../frontend/src/context/NotificationContext';

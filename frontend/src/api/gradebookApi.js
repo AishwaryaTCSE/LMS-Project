@@ -1,40 +1,64 @@
 import axiosInstance from './axiosInstance';
 
+// Gradebook API
+
 /**
- * Get student gradebook for a course
+ * Get all grades for a course (instructor only)
+ * @param {string} courseId - ID of the course
  */
-export const getStudentGradebook = async (courseId, studentId) => {
-  const response = await axiosInstance.get(`/gradebook/course/${courseId}/student/${studentId}`);
+export const getCourseGrades = async (courseId) => {
+  const response = await axiosInstance.get(`/courses/${courseId}/grades`);
   return response.data;
 };
 
 /**
- * Get all gradebooks for a course (teacher)
+ * Get grades for a specific student
+ * @param {string} courseId - ID of the course
  */
-export const getCourseGradebooks = async (courseId) => {
-  const response = await axiosInstance.get(`/gradebook/course/${courseId}`);
+export const getStudentGrades = async (courseId) => {
+  const response = await axiosInstance.get(`/courses/${courseId}/my-grades`);
   return response.data;
 };
 
 /**
- * Export gradebook as CSV
+ * Get submissions for an assignment
+ * @param {string} assignmentId - ID of the assignment
  */
-export const exportGradebook = async (courseId) => {
-  const response = await axiosInstance.get(`/gradebook/course/${courseId}/export`);
+export const getAssignmentSubmissions = async (assignmentId) => {
+  const response = await axiosInstance.get(`/assignments/${assignmentId}/submissions`);
   return response.data;
 };
 
 /**
- * Get student performance summary
+ * Update a grade
+ * @param {string} submissionId - ID of the submission
+ * @param {Object} gradeData - Grade data to update
  */
-export const getStudentPerformance = async (studentId) => {
-  const response = await axiosInstance.get(`/gradebook/student/${studentId}/performance`);
+export const updateGrade = async (submissionId, gradeData) => {
+  const response = await axiosInstance.put(
+    `/submissions/${submissionId}/grade`,
+    gradeData
+  );
+  return response.data;
+};
+
+/**
+ * Export grades for a course
+ * @param {string} courseId - ID of the course
+ * @param {string} format - Export format (csv, excel, etc.)
+ */
+export const exportGrades = async (courseId, format = 'csv') => {
+  const response = await axiosInstance.get(
+    `/courses/${courseId}/export-grades`,
+    { responseType: 'blob', params: { format } }
+  );
   return response.data;
 };
 
 export default {
-  getStudentGradebook,
-  getCourseGradebooks,
-  exportGradebook,
-  getStudentPerformance
+  getCourseGrades,
+  getStudentGrades,
+  getAssignmentSubmissions,
+  updateGrade,
+  exportGrades,
 };

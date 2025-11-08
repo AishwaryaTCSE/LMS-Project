@@ -1,88 +1,68 @@
-// courseService.js
-import axios from './axiosInstance.js';
+// frontend/src/api/courseApi.js
+import axiosInstance from './axiosInstance';
 
+// Get all courses
 export const getCourses = async () => {
-  try {
-    const response = await axios.get('/courses');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching courses:', error);
-    throw error;
-  }
+  const response = await axiosInstance.get('/api/courses');
+  return response.data;
 };
 
+// Get single course by ID
 export const getCourseById = async (id) => {
-  try {
-    const response = await axios.get(`/courses/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching course with id ${id}:`, error);
-    throw error;
-  }
+  const response = await axiosInstance.get(`/api/courses/${id}`);
+  return response.data;
 };
 
-export const createCourse = async (data) => {
-  try {
-    const response = await axios.post('/courses', data);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating course:', error);
-    throw error;
-  }
+// Create new course
+export const createCourse = async (courseData) => {
+  const response = await axiosInstance.post('/api/courses', courseData);
+  return response.data;
 };
 
-export const updateCourse = async (id, data) => {
-  try {
-    const response = await axios.put(`/courses/${id}`, data);
-    return response.data;
-  } catch (error) {
-    console.error(`Error updating course with id ${id}:`, error);
-    throw error;
-  }
+// Update course
+export const updateCourse = async (id, courseData) => {
+  const response = await axiosInstance.put(`/api/courses/${id}`, courseData);
+  return response.data;
 };
 
+// Delete course
 export const deleteCourse = async (id) => {
-  try {
-    const response = await axios.delete(`/courses/${id}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error deleting course with id ${id}:`, error);
-    throw error;
-  }
+  const response = await axiosInstance.delete(`/api/courses/${id}`);
+  return response.data;
 };
 
-export const getQuizzes = async (courseId) => {
-  try {
-    const response = await axios.get(`/courses/${courseId}/quizzes`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching quizzes for course ${courseId}:`, error);
-    throw error;
-  }
+// Enroll in a course
+export const enrollInCourse = async (courseId) => {
+  const response = await axiosInstance.post(`/api/courses/${courseId}/enroll`);
+  return response.data;
 };
 
-export const getSubmissions = async (courseId, quizId) => {
-  try {
-    const response = await axios.get(`/courses/${courseId}/quizzes/${quizId}/submissions`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching submissions for quiz ${quizId} in course ${courseId}:`, error);
-    throw error;
-  }
+// Get enrolled courses
+export const getEnrolledCourses = async () => {
+  const response = await axiosInstance.get('/api/courses/enrolled');
+  return response.data;
 };
 
-export const gradeSubmission = async (courseId, quizId, submissionId, gradeData) => {
-  try {
-    const response = await axios.put(
-      `/courses/${courseId}/quizzes/${quizId}/submissions/${submissionId}/grade`,
-      gradeData
-    );
-    return response.data;
-  } catch (error) {
-    console.error(
-      `Error grading submission ${submissionId} for quiz ${quizId} in course ${courseId}:`,
-      error
-    );
-    throw error;
-  }
+// Get courses by instructor
+export const getInstructorCourses = async (instructorId) => {
+  const response = await axiosInstance.get(`/api/courses/instructor/${instructorId}`);
+  return response.data;
+};
+
+// Upload course image
+export const uploadCourseImage = async (courseId, imageFile) => {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  
+  const response = await axiosInstance.post(
+    `/api/courses/${courseId}/upload-image`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  
+  return response.data;
 };
