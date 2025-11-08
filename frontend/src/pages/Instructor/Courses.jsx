@@ -1,5 +1,5 @@
 // src/pages/Instructor/Courses.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box, Button, Card, CardContent, CardMedia, Typography, Grid,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField,
@@ -28,7 +28,6 @@ const coursesData = [
 
 export default function Courses() {
   const [courses, setCourses] = useState(coursesData);
-  const [openDialog, setOpenDialog] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const navigate = useNavigate();
@@ -65,7 +64,7 @@ export default function Courses() {
         <Button
           variant="contained"
           startIcon={<AddIcon />}
-          onClick={() => navigate('/instructor/courses/new')}
+          onClick={() => navigate('/instructor/courses/create')}
         >
           New Course
         </Button>

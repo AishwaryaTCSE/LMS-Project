@@ -16,16 +16,28 @@ export const NotificationProvider = ({ children }) => {
   );
 
   const load = useCallback(async () => {
-    if (!user) return;
+    // Don't try to load if there's no user
+    if (!user?._id) {
+      setItems([]);
+      return;
+    }
+    
     try {
       setLoading(true);
       const data = await notificationApi.getMyNotifications();
       const list = data?.items || [];
       setItems(list);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+      // Don't clear existing notifications on error
+      if (error.response?.status === 401) {
+        // If unauthorized, clear the items to prevent further errors
+        setItems([]);
+      }
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user?._id]);  // Only re-create when user._id changes
 
   const markAsRead = useCallback(async (id) => {
     await notificationApi.markAsRead(id);
@@ -39,18 +51,29 @@ export const NotificationProvider = ({ children }) => {
 
   useEffect(() => {
     let active = true;
+    let id;
+
     const init = async () => {
-      await load();
+      if (active && user?._id) {
+        await load();
+      }
     };
-    if (user) init();
-    const id = setInterval(() => {
-      if (active) load();
-    }, 30000);
+
+    // Initial load
+    init();
+
+    // Only set up polling if user is authenticated
+    if (user?._id) {
+      id = setInterval(() => {
+        if (active) load();
+      }, 30000);
+    }
+
     return () => {
       active = false;
-      clearInterval(id);
+      if (id) clearInterval(id);
     };
-  }, [user, load]);
+  }, [load, user?._id]);  // Only re-run when user._id changes
 
   const value = {
     items,

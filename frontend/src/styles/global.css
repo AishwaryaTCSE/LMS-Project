@@ -10,6 +10,26 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Ensure form elements are visible */
+input, textarea, select {
+  @apply text-gray-900 !important;
+  background-color: white !important;
+}
+
+/* Ensure input placeholders are visible */
+::placeholder {
+  @apply text-gray-500 !important;
+  opacity: 1 !important;
+}
+
+/* Ensure input text is visible when typing */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  @apply text-gray-900 !important;
+  caret-color: #3b82f6 !important; /* Blue cursor color */
+}
+
 a {
   @apply text-white hover:text-purple-200 transition-colors;
 }
@@ -132,6 +152,39 @@ label.floating {
 ========================== */
 .alert {
   @apply p-4 rounded-lg text-white transition-all duration-300;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+  color: #111827 !important; /* gray-900 */
+  background-color: #ffffff !important;
+}
+
+/* Ensure text is visible in inputs when typing */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  -webkit-text-fill-color: #111827 !important;
+  -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+  box-shadow: 0 0 0px 1000px #ffffff inset !important;
+}
+
+/* Fix for autofill background color */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px white inset !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+/* Ensure cursor is visible */
+input, textarea, select {
+  caret-color: #2563eb; /* blue-600 */
 }
 
 .alert-success { @apply bg-green-500/70; }

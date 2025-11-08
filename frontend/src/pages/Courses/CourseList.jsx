@@ -9,24 +9,30 @@ import { FaEdit, FaTrash, FaPlus, FaSearch, FaEye } from 'react-icons/fa';
 const CourseList = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await getCourses();
+        // Ensure we're working with an array
+        const coursesData = Array.isArray(response) ? response : [];
+        setCourses(coursesData);
+      } catch (err) {
+        console.error('Error fetching courses:', err);
+        setError('Failed to load courses. Please try again later.');
+        setCourses([]); // Ensure courses is always an array
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchCourses();
   }, []);
-
-  const fetchCourses = async () => {
-    setLoading(true);
-    try {
-      const data = await getCourses();
-      setCourses(data);
-    } catch (err) {
-      toast.error(err.message || 'Failed to fetch courses');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this course?')) {
@@ -40,12 +46,26 @@ const CourseList = () => {
     }
   };
 
-  const filteredCourses = courses.filter(course =>
-    course.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    course.instructorName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter courses based on search term
+  const filteredCourses = courses.filter(course => {
+    const title = course.title?.toLowerCase() || '';
+    const instructor = course.instructorName?.toLowerCase() || '';
+    const search = searchTerm.toLowerCase();
+    return title.includes(search) || instructor.includes(search);
+  });
 
   if (loading) return <Loader />;
+  
+  // Show error message if there's an error and no courses
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 min-h-screen bg-gray-50">
@@ -72,8 +92,6 @@ const CourseList = () => {
           </Link>
         </div>
       </div>
-
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCourses.length > 0 ? (

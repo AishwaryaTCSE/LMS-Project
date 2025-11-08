@@ -8,7 +8,7 @@ exports.createCourse = async (req, res, next) => {
     const { title, description, subjects, startDate, endDate, price } = req.body;
     
     if (!title || !description) {
-      return new ErrorResponse('Title and description are required', 400).send(res);
+      return res.status(400).json({ success: false, message: 'Title and description are required' });
     }
     
     // Handle file upload if thumbnail exists
@@ -302,4 +302,10 @@ exports.getStudentCourses = async (req, res, next) => {
     console.error('Get Student Courses Error:', err);
     next(err);
   }
+};
+
+// Backwards-compatible alias expected by student routes
+exports.getCourseDetails = async (req, res, next) => {
+  // Delegate to the existing getCourse handler which uses req.params.id
+  return exports.getCourse(req, res, next);
 };

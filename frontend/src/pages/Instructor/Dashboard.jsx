@@ -435,7 +435,7 @@ export default function InstructorDashboard() {
                     variant="contained" 
                     color="primary" 
                     startIcon={<AddIcon />}
-                    onClick={() => navigate('/instructor/courses/new')}
+                    onClick={() => navigate('/instructor/courses/create')}
                     sx={{ mb: 2 }}
                   >
                     Create New Course

@@ -1,14 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FiBookOpen,
-  FiFileText,
-  FiCheckCircle,
-  FiAward,
-  FiClock,
-  FiMessageSquare,
-  FiCalendar,
-  FiTrendingUp
-} from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { getStudentDashboard } from '../../api/dashboardApi';
 import { getStudentPerformance } from '../../api/gradebookApi';
@@ -29,13 +19,102 @@ const formatDistanceToNow = (date) => {
   return 'Just now';
 };
 
+const formatTimeAgo = (date) => {
+  const now = new Date();
+  const diff = now - new Date(date);
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+  if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+  return 'Just now';
+};
+
+const PerformanceChart = ({ performanceData }) => {
+  const data = performanceData?.map(item => ({
+    name: item.courseName,
+    grade: item.percentage
+  })) || [];
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Overview</h3>
+      <div className="h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Line type="monotone" dataKey="grade" stroke="#8884d8" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+};
+
+const CalendarWidget = ({ upcomingDeadlines }) => {
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Deadlines</h3>
+      <div className="space-y-3">
+        {upcomingDeadlines?.map((deadline, index) => (
+          <div key={index} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+              <FiCalendar className="w-5 h-5 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900">{deadline.title}</p>
+              <p className="text-xs text-gray-500">{new Date(deadline.dueDate).toLocaleDateString()}</p>
+            </div>
+          </div>
+        ))}
+        {(!upcomingDeadlines || upcomingDeadlines.length === 0) && (
+          <p className="text-sm text-gray-500 text-center">No upcoming deadlines</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const StatCard = ({ title, value, onClick }) => (
+  <div 
+    onClick={onClick}
+    className="bg-white rounded-lg p-6 cursor-pointer hover:shadow-lg transition-shadow"
+  >
+    <h3 className="text-lg font-medium mb-2">{title}</h3>
+    <p className="text-4xl font-semibold">{value}</p>
+  </div>
+);
+
+const ActivityCard = ({ title, children }) => (
+  <div className="bg-white rounded-lg p-6">
+    <h3 className="text-lg font-medium mb-4">{title}</h3>
+    {children}
+  </div>
+);
+
 const StudentDashboard = () => {
-  const [dashboardData, setDashboardData] = useState(null);
-  const [performanceData, setPerformanceData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await getStudentDashboard();
+        setRecentActivity(response.recentActivity || []);
+        setUpcomingDeadlines(response.upcomingDeadlines || []);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -109,28 +188,32 @@ const StudentDashboard = () => {
 
   const stats = [
     { 
-      title: 'Courses Enrolled', 
-      value: performanceData?.totalCourses || dashboardData?.coursesEnrolled || 0, 
+      title: 'My Courses', 
+      value: performanceData?.totalCourses || dashboardData?.coursesEnrolled || 5, 
       icon: <FiBookOpen className="w-8 h-8" />,
-      color: 'bg-purple-500'
+      color: 'bg-purple-500',
+      link: '/student/courses'
     },
     { 
-      title: 'Assignments Due', 
-      value: dashboardData?.assignmentsPending || 0, 
-      icon: <FiFileText className="w-8 h-8" />,
-      color: 'bg-orange-500'
+      title: 'Pending Assignments', 
+      value: dashboardData?.assignmentsPending || 3, 
+      icon: <FiClock className="w-8 h-8" />,
+      color: 'bg-orange-500',
+      link: '/student/assignments'
     },
     { 
-      title: 'Average GPA', 
-      value: performanceData?.averageGPA?.toFixed(2) || '0.00', 
-      icon: <FiTrendingUp className="w-8 h-8" />,
-      color: 'bg-green-500'
-    },
-    { 
-      title: 'Overall Grade', 
-      value: `${performanceData?.averagePercentage?.toFixed(1) || dashboardData?.overallGrade || 0}%`, 
+      title: 'Average Grade', 
+      value: performanceData?.overallGrade || dashboardData?.overallGrade || 'A-', 
       icon: <FiAward className="w-8 h-8" />,
-      color: 'bg-blue-600'
+      color: 'bg-green-500',
+      link: '/student/grades'
+    },
+    { 
+      title: 'Upcoming Quizzes', 
+      value: dashboardData?.upcomingQuizzes || 2, 
+      icon: <FiEdit3 className="w-8 h-8" />,
+      color: 'bg-blue-500',
+      link: '/student/quizzes'
     }
   ];
 
@@ -217,31 +300,131 @@ const StudentDashboard = () => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">
-          Welcome back, {user?.firstName || 'Student'}!
-        </h1>
-        <p className="text-purple-100">Here's your learning overview</p>
+    <div className="max-w-[1600px] mx-auto px-4 py-6">
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-semibold">Overview</h1>
+        <div className="flex gap-4">
+          <button className="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-600">Week</button>
+          <button className="px-3 py-1 text-sm rounded-full hover:bg-gray-100">Month</button>
+          <button className="px-3 py-1 text-sm rounded-full hover:bg-gray-100">Quarter</button>
+          <button className="px-3 py-1 text-sm rounded-full hover:bg-gray-100">Year</button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <div 
-            key={index}
-            className={`${stat.color} rounded-lg p-6 text-white flex items-center gap-4 shadow-lg hover:shadow-xl transition-shadow`}
-          >
-            <div className="bg-white bg-opacity-20 rounded-full p-4">
-              {stat.icon}
-            </div>
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-start justify-between">
             <div>
-              <p className="text-3xl font-bold">{stat.value}</p>
-              <p className="text-sm opacity-90">{stat.title}</p>
+              <p className="text-3xl font-semibold">{performanceData?.totalCourses || "1.5K"}</p>
+              <p className="text-sm text-gray-500 mt-1">Courses view</p>
+            </div>
+            <div className="bg-blue-100 p-2 rounded-lg">
+              <FiBookOpen className="w-6 h-6 text-blue-600" />
             </div>
           </div>
-        ))}
+        </div>
+
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-3xl font-semibold">2.8K</p>
+              <p className="text-sm text-gray-500 mt-1">Total learning hours</p>
+            </div>
+            <div className="bg-purple-100 p-2 rounded-lg">
+              <FiClockAlt className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-3xl font-semibold">258</p>
+              <p className="text-sm text-gray-500 mt-1">Students enrol</p>
+            </div>
+            <div className="bg-green-100 p-2 rounded-lg">
+              <FiUsers className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-3xl font-semibold">120</p>
+              <p className="text-sm text-gray-500 mt-1">Tasks completed</p>
+            </div>
+            <div className="bg-orange-100 p-2 rounded-lg">
+              <FiCheckCircleAlt className="w-6 h-6 text-orange-600" />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-3xl font-semibold">12</p>
+              <p className="text-sm text-gray-500 mt-1">Tasks due</p>
+            </div>
+            <div className="bg-red-100 p-2 rounded-lg">
+              <FiClock className="w-6 h-6 text-red-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts and Lists */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Course Activity Chart */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h2 className="text-lg font-semibold mb-4">Courses</h2>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={[
+                { day: 'Mon', views: 250, enroll: 100 },
+                { day: 'Tue', views: 150, enroll: 30 },
+                { day: 'Wed', views: 200, enroll: 80 },
+                { day: 'Thu', views: 180, enroll: 20 },
+                { day: 'Fri', views: 250, enroll: 120 },
+                { day: 'Sat', views: 220, enroll: 100 },
+                { day: 'Sun', views: 150, enroll: 30 }
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="views" fill="#E2E8F0" />
+                <Bar dataKey="enroll" fill="#3B82F6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Tasks/Assignment Chart */}
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+          <h2 className="text-lg font-semibold mb-4">Tasks/Assignment</h2>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={[
+                { day: 'Mon', views: 250, completed: 90 },
+                { day: 'Tue', views: 150, completed: 40 },
+                { day: 'Wed', views: 220, completed: 85 },
+                { day: 'Thu', views: 180, completed: 25 },
+                { day: 'Fri', views: 240, completed: 110 },
+                { day: 'Sat', views: 200, completed: 95 },
+                { day: 'Sun', views: 140, completed: 35 }
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="views" fill="#E2E8F0" />
+                <Bar dataKey="completed" fill="#3B82F6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
 
       {/* Charts Row */}

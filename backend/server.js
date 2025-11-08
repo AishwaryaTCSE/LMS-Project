@@ -19,6 +19,7 @@ const messageRoutes = require('./src/routes/message.routes');
 const assignmentRoutes = require('./src/routes/assignments.router');
 const quizRoutes = require('./src/routes/quiz.routes');
 const gradebookRoutes = require('./src/routes/gradebook.routes');
+const studentRoutes = require('./src/routes/student.routes');
 // === FIX: Import the instructor routes file ===
 const instructorRoutes = require('./src/routes/instructor.routes');
 // =============================================
@@ -128,6 +129,8 @@ app.use('/api/v1/messages', messageRoutes);
 app.use('/api/v1/assignments', assignmentRoutes);
 app.use('/api/v1/quizzes', quizRoutes);
 app.use('/api/v1/gradebook', gradebookRoutes);
+// Mount student routes so student-specific endpoints (e.g., /api/v1/student/quizzes) are available
+app.use('/api/v1/student', studentRoutes);
 
 // === FIX: Mount the instructor routes at the correct base path ===
 app.use('/api/v1/instructor', instructorRoutes);

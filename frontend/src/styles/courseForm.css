@@ -1,0 +1,32 @@
+.course-form-container {
+  position: relative;
+  z-index: 100;
+  background-color: white;
+}
+
+.course-form-input {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.course-form-input input,
+.course-form-input select,
+.course-form-input textarea {
+  width: 100%;
+  background-color: white;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto !important;
+}
+
+.form-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  background-color: rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+}

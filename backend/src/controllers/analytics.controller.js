@@ -135,9 +135,10 @@ const analyticsController = {
         }
     },
 
-    // Admin Analytics
-    getAdminAnalytics: async (req, res, next) => {
+    // Instructor Analytics (was incorrectly named getAdminAnalytics)
+    getInstructorAnalytics: async (req, res, next) => {
         try {
+            const Course = require('../models/course.model');
             const courses = await Course.find({ instructor: req.user._id })
                 .populate('students', 'firstName lastName email')
                 .lean();

@@ -17,7 +17,7 @@ const CourseSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
     required: true,
-    index: true
+    // index defined below via CourseSchema.index({ instructor: 1 })
   },
   instructorId: { 
     type: mongoose.Schema.Types.ObjectId, 

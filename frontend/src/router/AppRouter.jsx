@@ -16,6 +16,7 @@ const Settings = lazy(() => import('../pages/Settings'));
 // --- Course Pages ---
 const Courses = lazy(() => import('../pages/Courses/CourseList'));
 const CourseDetail = lazy(() => import('../pages/Courses/CourseDetail'));
+const CourseForm = lazy(() => import('../pages/Courses/CourseForm'));
 
 // --- Assignment Pages ---
 const AssignmentList = lazy(() => import('../pages/Assignments/AssignmentList'));
@@ -44,10 +45,10 @@ const SimilarityReport = lazy(() => import('../pages/Plagiarism/SimilarityReport
 
 // --- Admin Pages ---
 const PageNotFound = lazy(() => import('../pages/PageNotFound'));
-
-// Admin Components
 const AdminLayout = lazy(() => import('../layout/AdminLayout'));
 const UsersManagement = lazy(() => import('../pages/Admin/UsersManagement'));
+const UserDetail = lazy(() => import('../pages/Admin/UserDetail'));
+const CourseManagement = lazy(() => import('../pages/Admin/CourseManagement'));
 const AdminStudents = lazy(() => import('../pages/Admin/Students'));
 const AdminInstructors = lazy(() => import('../pages/Admin/Instructors'));
 const AdminCourses = lazy(() => import('../pages/Admin/Courses'));
@@ -56,18 +57,26 @@ const AdminAnalytics = lazy(() => import('../pages/Admin/Analytics'));
 const AdminProfile = lazy(() => import('../pages/Admin/Profile'));
 const AdminDashboard = lazy(() => import('../pages/dashboard/AdminDashboard'));
 
-// NEW: Instructor Route Components
+// --- Instructor Components ---
+const InstructorLayout = lazy(() => import('../layout/InstructorLayout'));
 const InstructorDashboard = lazy(() => import('../pages/Instructor/Dashboard'));
 const InstructorCourses = lazy(() => import('../pages/Instructor/Courses'));
+const InstructorCourseForm = lazy(() => import('../pages/Courses/CourseForm'));
 const InstructorStudents = lazy(() => import('../pages/Instructor/Students'));
 const InstructorMessages = lazy(() => import('../pages/Instructor/Messages'));
 const InstructorAnalytics = lazy(() => import('../pages/Instructor/Analytics'));
 const InstructorSettings = lazy(() => import('../pages/Instructor/Settings'));
+const InstructorActivities = lazy(() => import('../pages/Instructor/Activities'));
+const InstructorGradebook = lazy(() => import('../pages/Instructor/Gradebook'));
+const InstructorProfile = lazy(() => import('../pages/Instructor/Profile'));
+const InstructorAssignments = lazy(() => import('../pages/Instructor/Assignments'));
+const StudentDetail = lazy(() => import('../pages/Instructor/StudentDetail')); // Added missing component
+const ConversationDetail = lazy(() => import('../pages/Instructor/ConversationDetail')); // Added missing component
 
 
 // --- Route Components ---
 const ProtectedRoute = lazy(() => import('../components/ProtectedRoute'));
-const AdminRoute = lazy(() => import('../router/AdminRoute')); // Note: Not used in this file's final structure, but kept.
+const AdminRoute = lazy(() => import('../router/AdminRoute')); 
 
 const AppRouter = () => {
   const { isAuthenticated, user, loading } = useSelector((state) => state.auth);
@@ -104,9 +113,12 @@ const AppRouter = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Protected Routes */}
+        {/* =========================================================================
+        COMMON PROTECTED ROUTES 
+        ========================================================================== */}
         <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} />}>
-          {/* Role-based dashboard redirection */}
+          
+          {/* Role-based dashboard redirection (for /dashboard path) */}
           <Route 
             path="/dashboard" 
             element={
@@ -122,32 +134,31 @@ const AppRouter = () => {
             } 
           />
           
-          {/* Common protected routes */}
+          {/* General Routes */}
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
 
-          {/* Course Routes */}
+          {/* Course, Assignment, Quiz, Gradebook, Submission, Plagiarism Routes 
+             (Used as generic routes or accessible by all roles, controlled by logic) */}
           <Route path="/courses" element={<Courses />} />
+          <Route path="/courses/add" element={<CourseForm />} />
+          <Route path="/courses/edit/:courseId" element={<CourseForm />} />
           <Route path="/courses/:courseId" element={<CourseDetail />} />
 
-          {/* Assignment Routes */}
           <Route path="/courses/:courseId/assignments" element={<AssignmentList />} />
           <Route path="/courses/:courseId/assignments/new" element={<AssignmentForm />} />
           <Route path="/assignments/:assignmentId/edit" element={<AssignmentForm />} />
           <Route path="/assignments/:assignmentId" element={<AssignmentDetail />} />
 
-          {/* Quiz Routes */}
           <Route path="/courses/:courseId/quizzes" element={<QuizList />} />
           <Route path="/quizzes/new" element={<QuizForm />} />
           <Route path="/quizzes/:quizId/edit" element={<QuizForm />} />
           <Route path="/quizzes/:quizId/take" element={<QuizTaking />} />
           <Route path="/quizzes/:quizId/results/:attemptId" element={<QuizResult />} />
 
-          {/* Gradebook Routes */}
           <Route path="/courses/:courseId/gradebook" element={<GradebookView />} />
           <Route path="/courses/:courseId/grades" element={<StudentGradeView />} />
 
-          {/* Submission Routes */}
           <Route
             path="/assignments/:assignmentId/submit"
             element={isStudent ? <SubmissionForm /> : <Navigate to="/" replace />}
@@ -161,7 +172,6 @@ const AppRouter = () => {
             element={isInstructor ? <GradingInterface /> : <Navigate to="/" replace />}
           />
 
-          {/* Plagiarism Check Routes */}
           <Route
             path="/assignments/:assignmentId/plagiarism"
             element={isInstructor ? <PlagiarismCheck /> : <Navigate to="/" replace />}
@@ -171,68 +181,118 @@ const AppRouter = () => {
             element={isInstructor ? <SimilarityReport /> : <Navigate to="/" replace />}
           />
 
-          {/* Student Quizzes */}
+          {/* Student-Specific Routes */}
+          <Route path="/student/dashboard" element={<Dashboard studentView />} /> {/* Assuming Dashboard handles student view */}
           <Route path="/student/quizzes">
             <Route index element={<QuizList studentView />} />
             <Route path=":quizId/take" element={<QuizTaking />} />
             <Route path="results/:attemptId" element={<QuizResult />} />
           </Route>
-
-          {/* Student Grades */}
           <Route path="/student/grades" element={<StudentGradeView />} />
 
 
-          {/* Instructor Routes (Protected by the parent ProtectedRoute) */}
-          <Route path="/instructor">
+          {/* =========================================================================
+          INSTRUCTOR ROUTES (Nested under /instructor and ProtectedRoute)
+          ========================================================================== */}
+          <Route path="/instructor" element={<InstructorLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<InstructorDashboard />} />
-            <Route path="courses" element={<InstructorCourses />} />
-            <Route path="students" element={<InstructorStudents />} />
-            <Route path="messages" element={<InstructorMessages />} />
-            <Route path="analytics" element={<InstructorAnalytics />} />
-            <Route path="settings" element={<InstructorSettings />} />
-
-            {/* Instructor Assignments */}
+            
+            {/* Courses */}
+            <Route path="courses">
+              <Route index element={<InstructorCourses />} />
+              <Route path="create" element={<InstructorCourseForm />} />
+              {/* Alias for older links that used 'new' */}
+              <Route path="new" element={<InstructorCourseForm />} />
+              <Route path=":courseId/edit" element={<InstructorCourseForm />} />
+              <Route path=":courseId" element={<CourseDetail />} />
+            </Route>
+            
+            {/* Assignments */}
             <Route path="assignments">
-              <Route index element={<AssignmentList />} />
+              <Route index element={<InstructorAssignments />} />
               <Route path="create" element={<AssignmentForm />} />
               <Route path=":assignmentId" element={<AssignmentDetail />} />
-              <Route path="edit/:assignmentId" element={<AssignmentForm />} />
+              <Route path=":assignmentId/edit" element={<AssignmentForm />} />
               <Route path=":assignmentId/submissions" element={<SubmissionList />} />
               <Route path="submissions/:submissionId/grade" element={<GradingInterface />} />
+              <Route path=":assignmentId/plagiarism" element={<PlagiarismCheck />} />
             </Route>
 
-            {/* Instructor Quizzes */}
+            {/* Quizzes */}
             <Route path="quizzes">
               <Route index element={<QuizList />} />
               <Route path="create" element={<QuizForm />} />
               <Route path="edit/:quizId" element={<QuizForm />} />
               <Route path="results/:quizId" element={<QuizResult showAll />} />
+              <Route path=":quizId/plagiarism" element={<PlagiarismCheck />} /> 
+            </Route>
+            
+            {/* Students */}
+            <Route path="students">
+              <Route index element={<InstructorStudents />} />
+              <Route path=":studentId" element={<StudentDetail />} />
+            </Route>
+            
+            {/* Activities */}
+            <Route path="activities" element={<InstructorActivities />} />
+            
+            {/* Messages */}
+            <Route path="messages">
+              <Route index element={<InstructorMessages />} />
+              <Route path=":conversationId" element={<ConversationDetail />} />
+            </Route>
+            
+            {/* Analytics */}
+            <Route path="analytics" element={<InstructorAnalytics />} />
+            
+            {/* Gradebook */}
+            <Route path="gradebook">
+              <Route index element={<InstructorGradebook />} />
+              <Route path="course/:courseId" element={<GradebookView />} />
+              <Route path="student/:studentId" element={<StudentGradeView />} />
+            </Route>
+            
+            {/* Settings & Profile */}
+            <Route path="settings" element={<InstructorSettings />} />
+            <Route path="profile" element={<InstructorProfile />} />
+            
+            {/* Plagiarism Check (Generic) */}
+            <Route path="plagiarism">
+              <Route index element={<PlagiarismCheck />} />
+              <Route path="report/:reportId" element={<SimilarityReport />} />
             </Route>
 
-            {/* Gradebook */}
-            <Route path="gradebook" element={<GradebookView />} />
-            <Route path="gradebook/entry/:studentId/:courseId" element={<GradeEntry />} />
+          </Route> {/* End of Instructor Routes */}
+        </Route> {/* End of Common Protected Routes */}
 
-            {/* Plagiarism Check */}
-            <Route path="plagiarism" element={<PlagiarismCheck />} />
-            <Route path="plagiarism/report/:reportId" element={<SimilarityReport />} />
-          </Route>
-        </Route> {/* End of Protected Routes */}
 
-        {/* Admin Routes */}
-        {/* Note: Using ProtectedRoute with 'admin' role check, but it should be defined */}
-        <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} allowedRoles={['admin']} redirectPath="/unauthorized" />}>
+        {/* =========================================================================
+        ADMIN ROUTES 
+        ========================================================================== */}
+        <Route element={
+          <ProtectedRoute 
+            isAuthenticated={isAuthenticated}
+            allowedRoles={['admin']}
+            redirectPath="/unauthorized"
+          />
+        }>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="students" element={<AdminStudents />} />
             <Route path="instructors" element={<AdminInstructors />} />
-            <Route path="courses" element={<AdminCourses />} />
+            <Route path="courses">
+              <Route index element={<CourseManagement />} />
+              <Route path=":courseId" element={<CourseDetail />} />
+            </Route>
             <Route path="reports" element={<AdminReports />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="profile" element={<AdminProfile />} />
-            <Route path="users" element={<UsersManagement />} />
+            <Route path="users">
+              <Route index element={<UsersManagement />} />
+              <Route path=":userId" element={<UserDetail />} />
+            </Route>
           </Route>
         </Route>
 

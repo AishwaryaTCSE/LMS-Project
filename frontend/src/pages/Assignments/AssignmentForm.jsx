@@ -1,136 +1,160 @@
+// frontend/src/pages/Assignments/AssignmentForm.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+import { Box, Button, TextField, Typography, Paper, CircularProgress, Alert } from '@mui/material';
 import { createAssignment, updateAssignment, getAssignmentById } from '../../api/assignmentApi';
 
-const AssignmentForm = () => {
-  const { id } = useParams();
+const AssignmentForm = ({ mode = 'create' }) => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    dueDate: '',
-    maxScore: 100,
-    courseId: '', // This would typically come from the course context or params
+  const { assignmentId } = useParams();
+  const [isLoading, setIsLoading] = useState(mode === 'edit');
+  const [error, setError] = useState('');
+
+  const formik = useFormik({
+    initialValues: {
+      title: '',
+      description: '',
+      dueDate: '',
+      totalPoints: 100,
+      course: '',
+      files: [],
+    },
+    validationSchema: Yup.object({
+      title: Yup.string().required('Title is required'),
+      description: Yup.string().required('Description is required'),
+      dueDate: Yup.date().required('Due date is required').min(new Date(), 'Due date must be in the future'),
+      totalPoints: Yup.number().required('Total points is required').min(1, 'Must be at least 1 point'),
+      course: Yup.string().required('Course is required'),
+    }),
+    onSubmit: async (values) => {
+      try {
+        setIsLoading(true);
+        setError('');
+        
+        if (mode === 'edit' && assignmentId) {
+          await updateAssignment(assignmentId, values);
+        } else {
+          await createAssignment(values);
+        }
+        
+        navigate('/instructor/assignments');
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to save assignment');
+      } finally {
+        setIsLoading(false);
+      }
+    },
   });
-  const [loading, setLoading] = useState(!!id);
 
   useEffect(() => {
-    if (id) {
+    if (mode === 'edit' && assignmentId) {
       const fetchAssignment = async () => {
         try {
-          const assignment = await getAssignmentById(id);
-          setFormData({
-            title: assignment.title,
-            description: assignment.description,
-            dueDate: assignment.dueDate.split('T')[0],
-            maxScore: assignment.maxScore,
-            courseId: assignment.courseId,
-          });
-        } catch (error) {
-          console.error('Error fetching assignment:', error);
+          const assignment = await getAssignmentById(assignmentId);
+          formik.setValues(assignment);
+        } catch (err) {
+          setError('Failed to load assignment');
         } finally {
-          setLoading(false);
+          setIsLoading(false);
         }
       };
       fetchAssignment();
     }
-  }, [id]);
+  }, [assignmentId, mode]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (id) {
-        await updateAssignment(id, formData);
-      } else {
-        await createAssignment(formData);
-      }
-      navigate('/instructor/assignments');
-    } catch (error) {
-      console.error('Error saving assignment:', error);
-    }
-  };
-
-  if (loading) return <div>Loading...</div>;
+  if (isLoading) {
+    return <CircularProgress />;
+  }
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">
-        {id ? 'Edit Assignment' : 'Create New Assignment'}
-      </h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Title</label>
-          <input
-            type="text"
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        {mode === 'edit' ? 'Edit Assignment' : 'Create New Assignment'}
+      </Typography>
+      
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      
+      <Paper sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
+        <form onSubmit={formik.handleSubmit}>
+          <TextField
+            fullWidth
+            id="title"
             name="title"
-            value={formData.title}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
+            label="Assignment Title"
+            value={formik.values.title}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched.title && Boolean(formik.errors.title)}
+            helperText={formik.touched.title && formik.errors.title}
+            margin="normal"
           />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Description</label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows="4"
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            required
-          />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Due Date</label>
-            <input
-              type="date"
-              name="dueDate"
-              value={formData.dueDate}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-            />
-          </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Max Score</label>
-            <input
-              type="number"
-              name="maxScore"
-              value={formData.maxScore}
-              onChange={handleChange}
-              min="1"
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
+          <TextField
+            fullWidth
+            id="description"
+            name="description"
+            label="Description"
+            multiline
+            rows={4}
+            value={formik.values.description}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            error={formik.touched.description && Boolean(formik.errors.description)}
+            helperText={formik.touched.description && formik.errors.description}
+            margin="normal"
+          />
+          
+          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+            <TextField
+              fullWidth
+              id="dueDate"
+              name="dueDate"
+              label="Due Date"
+              type="datetime-local"
+              InputLabelProps={{ shrink: true }}
+              value={formik.values.dueDate}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.dueDate && Boolean(formik.errors.dueDate)}
+              helperText={formik.touched.dueDate && formik.errors.dueDate}
             />
-          </div>
-        </div>
-        
-        <div className="flex justify-end space-x-4">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            {id ? 'Update' : 'Create'} Assignment
-          </button>
-        </div>
-      </form>
-    </div>
+            
+            <TextField
+              fullWidth
+              id="totalPoints"
+              name="totalPoints"
+              label="Total Points"
+              type="number"
+              value={formik.values.totalPoints}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              error={formik.touched.totalPoints && Boolean(formik.errors.totalPoints)}
+              helperText={formik.touched.totalPoints && formik.errors.totalPoints}
+            />
+          </Box>
+          
+          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate(-1)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              disabled={isLoading || !formik.isValid || !formik.dirty}
+            >
+              {isLoading ? <CircularProgress size={24} /> : 'Save Assignment'}
+            </Button>
+          </Box>
+        </form>
+      </Paper>
+    </Box>
   );
 };
 

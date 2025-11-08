@@ -163,3 +163,27 @@ const quizController = {
 };
 
 module.exports = quizController;
+
+// Backwards-compatible handlers expected by student routes
+exports.getAvailableQuizzes = async (req, res, next) => {
+  try {
+    // Return published quizzes (or all published for now)
+    const quizzes = await Quiz.find({ isPublished: true })
+      .populate('course', 'title')
+      .sort({ createdAt: -1 });
+    res.json({ success: true, data: quizzes });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getQuizAttempt = async (req, res, next) => {
+  try {
+    const { attemptId } = req.params;
+    const attempt = await Submission.findById(attemptId);
+    if (!attempt) return res.status(404).json({ success: false, message: 'Attempt not found' });
+    res.json({ success: true, data: attempt });
+  } catch (err) {
+    next(err);
+  }
+};

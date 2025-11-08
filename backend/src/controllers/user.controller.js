@@ -696,3 +696,38 @@ const userController = {
 };
 
 module.exports = userController;
+
+// Additional student-facing endpoints expected by student.routes
+const Gradebook = require('../models/gradebook.model');
+
+exports.getMyGrades = async (req, res, next) => {
+  try {
+    const studentId = req.user._id;
+    const gradebooks = await Gradebook.find({ studentId }).populate('courseId', 'title');
+    res.json({ success: true, data: gradebooks });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getCourseGrades = async (req, res, next) => {
+  try {
+    const studentId = req.user._id;
+    const { courseId } = req.params;
+    const gradebook = await Gradebook.findOne({ studentId, courseId }).populate('courseId', 'title');
+    if (!gradebook) return res.json({ success: true, data: null });
+    res.json({ success: true, data: gradebook });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getMyEvents = async (req, res, next) => {
+  try {
+    // Minimal implementation: return empty array or user-specific events if stored
+    // If later an Event model is added, this should be updated to fetch actual events.
+    res.json({ success: true, data: [] });
+  } catch (err) {
+    next(err);
+  }
+};

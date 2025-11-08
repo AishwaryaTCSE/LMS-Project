@@ -15,16 +15,39 @@ const instance = axios.create({
 // Log the base URL for debugging
 console.log('API Base URL:', instance.defaults.baseURL);
 
+// List of endpoints that don't require authentication
+const publicEndpoints = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password'
+];
+
 // Request interceptor to attach token
 instance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
+    // Skip token check for public endpoints
+    if (publicEndpoints.some(endpoint => config.url.endsWith(endpoint))) {
+      return config;
     }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('No authentication token found');
+      // Don't redirect for API calls, let the component handle it
+      return Promise.reject(new Error('No authentication token found'));
+    }
+    
+    // Ensure the token is properly formatted
+    const authToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    config.headers['Authorization'] = authToken;
+    
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    console.error('Request interceptor error:', error);
+    return Promise.reject(error);
+  }
 );
 
 // Response interceptor for global error handling

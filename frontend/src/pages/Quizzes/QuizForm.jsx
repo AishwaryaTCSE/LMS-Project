@@ -5,9 +5,9 @@ import {
   getQuizById, 
   createQuiz, 
   updateQuiz, 
-  addQuestion, 
-  updateQuestion, 
-  deleteQuestion 
+  addQuizQuestion as addQuestion, 
+  updateQuizQuestion as updateQuestion, 
+  deleteQuizQuestion as deleteQuestion 
 } from '../../api/quizApi';
 import Loader from '../../components/Loader';
 

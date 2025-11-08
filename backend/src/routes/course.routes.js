@@ -4,6 +4,13 @@ const courseCtrl = require('../controllers/course.controller');
 const { auth, permit } = require('../middlewares/auth.middleware');
 const { body, validationResult } = require('express-validator');
 
+// Guard route handlers so server doesn't crash if a controller export is missing
+const safe = (fn, name) => {
+  if (typeof fn === 'function') return fn;
+  console.warn(`Missing handler for ${name} — registering fallback to avoid crash.`);
+  return (req, res) => res.status(501).json({ success: false, message: `${name} handler not implemented on server` });
+};
+
 // Middleware to handle validation results
 const validate = (req, res, next) => {
   const errors = validationResult(req);
@@ -12,13 +19,13 @@ const validate = (req, res, next) => {
 };
 
 // GET /courses - list all courses
-router.get('/', courseCtrl.getCourses);
+router.get('/', safe(courseCtrl.getCourses, 'courses.getCourses'));
 
-// POST /courses - create a course (instructor/admin only)
+// POST /courses - create a course (instructor/admin/teacher)
 router.post(
   '/',
   auth,
-  permit('instructor', 'admin'),
+  permit('instructor', 'admin', 'teacher'),
   [
     body('title').notEmpty().withMessage('Course title is required'),
     body('description').optional().isString()

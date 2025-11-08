@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Assignment = require('../models/assignment.model');
 const Submission = require('../models/submission.model');
 const Course = require('../models/course.model');
@@ -72,6 +73,9 @@ exports.createAssignment = async (req, res, next) => {
 exports.getAssignments = async (req, res, next) => {
   try {
     const { courseId } = req.params;
+    if (!courseId || !mongoose.isValidObjectId(courseId)) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing courseId parameter' });
+    }
     const { page = 1, limit = 20 } = req.query;
     
     const assignments = await Assignment.find({ course: courseId })
@@ -99,6 +103,9 @@ exports.getAssignments = async (req, res, next) => {
 exports.getAssignment = async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!id || !mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing assignment id' });
+    }
     
     const assignment = await Assignment.findById(id)
       .populate('createdBy', 'firstName lastName email')
@@ -179,6 +186,9 @@ exports.deleteAssignment = async (req, res, next) => {
 exports.submitAssignment = async (req, res, next) => {
   try {
     const { assignmentId } = req.params;
+    if (!assignmentId || !mongoose.isValidObjectId(assignmentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing assignmentId' });
+    }
     const { textAnswer } = req.body;
     const studentId = req.user._id;
     
@@ -276,6 +286,9 @@ exports.gradeSubmission = async (req, res, next) => {
 exports.getSubmissions = async (req, res, next) => {
   try {
     const { assignmentId } = req.params;
+    if (!assignmentId || !mongoose.isValidObjectId(assignmentId)) {
+      return res.status(400).json({ success: false, message: 'Invalid or missing assignmentId' });
+    }
     
     const submissions = await Submission.find({ assignment: assignmentId, submissionType: 'assignment' })
       .populate('student', 'firstName lastName email')

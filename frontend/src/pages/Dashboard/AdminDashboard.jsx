@@ -13,9 +13,11 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
-import { getAdminDashboard, getAdminActivities } from '../../api/dashboardApi';
+import axios from 'axios';
 import Loader from '../../components/Loader';
 import useAuth from '../../hooks/useAuth';
+import { useNotifications } from '../../context/NotificationContext';
+import { message } from 'antd';
 
 const formatDistanceToNow = (date) => {
   if (!date) return 'No date';
@@ -38,46 +40,74 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const config = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+      
+      const [
+        usersResponse,
+        coursesResponse,
+        dashboardResponse,
+        activitiesResponse,
+        analyticsResponse
+      ] = await Promise.all([
+        axios.get('http://localhost:5000/api/v1/admin/stats/users', config),
+        axios.get('http://localhost:5000/api/v1/admin/stats/courses', config),
+        axios.get('http://localhost:5000/api/v1/admin/dashboard', config),
+        axios.get('http://localhost:5000/api/v1/admin/activities', config),
+        axios.get('http://localhost:5000/api/v1/admin/analytics', config)
+      ]);
+
+      setDashboardData({
+        stats: {
+          totalStudents: usersResponse.data.data?.totalStudents || 0,
+          activeInstructors: usersResponse.data.data?.totalInstructors || 0,
+          totalCourses: coursesResponse.data.data?.totalCourses || 0,
+          activeCourses: coursesResponse.data.data?.activeCourses || 0,
+          totalRevenue: coursesResponse.data.data?.totalRevenue || 0
+        },
+        systemStats: dashboardResponse.data.data?.systemStats || { cpu: 0, memory: 0, storage: 0 },
+        recentUsers: dashboardResponse.data.data?.recentUsers || [],
+        recentActivities: activitiesResponse.data.data || [],
+        analytics: dashboardResponse.data.data?.analytics || { userGrowth: [], courseEngagement: [] }
+      });
+      
+      setError('');
+    } catch (err) {
+      console.error('Dashboard error:', err);
+      setError(err.response?.data?.message || 'Failed to load dashboard data');
+      message.error('Failed to load dashboard data');
+      
+      // Set default values on error
+      setDashboardData({
+        stats: {
+          totalStudents: 0,
+          activeInstructors: 0,
+          totalCourses: 0,
+          activeCourses: 0,
+          totalRevenue: 0
+        },
+        systemStats: { cpu: 0, memory: 0, storage: 0 },
+        recentUsers: [],
+        recentActivities: [],
+        analytics: { userGrowth: [], courseEngagement: [] }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [dashboardResponse, activitiesResponse] = await Promise.all([
-          getAdminDashboard(),
-          getAdminActivities().catch(() => []) // Fallback if activities fail
-        ]);
-        
-        // Handle response structure: { success: true, data: {...} } or direct data
-        const dashboard = dashboardResponse.data || dashboardResponse;
-        const activities = Array.isArray(activitiesResponse) ? activitiesResponse : (activitiesResponse.data || []);
-        
-        setDashboardData({
-          ...dashboard,
-          recentActivities: activities
-        });
-        setError('');
-      } catch (err) {
-        console.error('Dashboard error:', err);
-        setError(err.response?.data?.message || err.message || 'Failed to load dashboard data');
-        // Set default data
-        setDashboardData({
-          stats: {
-            totalStudents: 0,
-            activeInstructors: 0,
-            totalCourses: 0,
-            activeCourses: 0,
-            totalRevenue: 0
-          },
-          systemStats: { cpu: 0, memory: 0, storage: 0 },
-          recentUsers: [],
-          recentActivities: [],
-          analytics: { userGrowth: [], courseEngagement: [] }
-        });
-      } finally {
-        setLoading(false);
-      }
+    const pollInterval = setInterval(fetchDashboardData, 30000);
+    fetchDashboardData();
+
+    return () => {
+      clearInterval(pollInterval);
     };
-    fetchData();
   }, []);
 
   const handleCardClick = (path) => {
@@ -98,7 +128,7 @@ const AdminDashboard = () => {
         <div className="text-center">
           <p className="text-red-500 mb-4">{error}</p>
           <button 
-            onClick={() => window.location.reload()} 
+            onClick={fetchDashboardData}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Retry

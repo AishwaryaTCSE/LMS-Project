@@ -196,3 +196,19 @@ const submissionController = {
 };
 
 module.exports = submissionController;
+
+// Backwards-compatible aliases expected by some routes
+// e.g. student.routes expects submitAssignment and getMySubmissions
+exports.submitAssignment = submissionController.createSubmission;
+
+exports.getMySubmissions = async (req, res, next) => {
+    try {
+        const studentId = req.user._id;
+        const submissions = await Submission.find({ student: studentId })
+            .populate('assignment', 'title')
+            .sort({ submittedAt: -1 });
+        res.json({ success: true, data: submissions });
+    } catch (err) {
+        next(err);
+    }
+};

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getQuizzes } from '../../api/quizApi';
+import axios from '../../api/axiosInstance';
 import Loader from '../../components/Loader';
 
 const QuizList = ({ studentView = false }) => {
@@ -11,8 +11,19 @@ const QuizList = ({ studentView = false }) => {
   useEffect(() => {
     const fetchQuizzes = async () => {
       try {
-        const data = await getQuizzes();
-        setQuizzes(data);
+        let response;
+        if (studentView) {
+          // Student route returns available quizzes under /student/quizzes
+          response = await axios.get('/student/quizzes');
+        } else {
+          // Instructor view: get instructor quizzes
+          response = await axios.get('/instructor/quizzes');
+        }
+
+        // Server responses are wrapped as { success: true, data: ... }
+        const payload = response.data?.data ?? response.data;
+        // Ensure payload is an array
+        setQuizzes(Array.isArray(payload) ? payload : payload.items || []);
       } catch (err) {
         setError('Failed to load quizzes. Please try again later.');
         console.error('Error fetching quizzes:', err);
@@ -22,7 +33,7 @@ const QuizList = ({ studentView = false }) => {
     };
 
     fetchQuizzes();
-  }, []);
+  }, [studentView]);
 
   if (loading) return <Loader />;
   if (error) return <div className="text-red-500 p-4">{error}</div>;
